@@ -60,20 +60,16 @@ function __fssh_check_control_path --description 'Check ControlPath directory wr
 
 	# Check if directory exists
 	if not builtin test -d "$control_dir"
-		set_color yellow
-		builtin echo "[WARN ] Host '$host': ControlPath directory does not exist: $control_dir"
-		builtin echo "        ControlMaster connections may fail"
-		set_color normal
+		builtin set --global --append __fssh_check_messages "W:[WARN ] Host '$host': ControlPath directory does not exist: $control_dir"
+		builtin set --global --append __fssh_check_messages "W:        ControlMaster connections may fail"
 		builtin echo "WARN:controlpath_dir_missing"
 		return 0
 	end
 
 	# Check if directory is writable
 	if not builtin test -w "$control_dir"
-		set_color yellow
-		builtin echo "[WARN ] Host '$host': ControlPath directory is not writable: $control_dir"
-		builtin echo "        ControlMaster connections may fail"
-		set_color normal
+		builtin set --global --append __fssh_check_messages "W:[WARN ] Host '$host': ControlPath directory is not writable: $control_dir"
+		builtin set --global --append __fssh_check_messages "W:        ControlMaster connections may fail"
 		builtin echo "WARN:controlpath_not_writable"
 		return 0
 	end

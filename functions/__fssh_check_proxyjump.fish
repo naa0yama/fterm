@@ -48,10 +48,8 @@ function __fssh_check_proxyjump --description 'Check ProxyJump existence and det
 
 		# Check 9: Circular reference detection
 		if builtin contains "$proxy_host" $visited_hosts
-			set_color red
-			builtin echo "[ERROR] Host '$host': Circular ProxyJump reference detected"
-			builtin echo "        Chain: $visited_hosts -> $host -> $proxy_host"
-			set_color normal
+			builtin set --global --append __fssh_check_messages "E:[ERROR] Host '$host': Circular ProxyJump reference detected"
+			builtin set --global --append __fssh_check_messages "E:        Chain: $visited_hosts -> $host -> $proxy_host"
 			builtin echo "ERROR:circular_proxyjump"
 			return 1
 		end
@@ -77,9 +75,7 @@ function __fssh_check_proxyjump --description 'Check ProxyJump existence and det
 				__fterm_debug "ProxyJump uses simple hostname: $proxy_host"
 			else
 				# Looks like an alias pattern but not found
-				set_color red
-				builtin echo "[ERROR] Host '$host': ProxyJump host not found in config: $proxy_host"
-				set_color normal
+				builtin set --global --append __fssh_check_messages "E:[ERROR] Host '$host': ProxyJump host not found in config: $proxy_host"
 				builtin echo "ERROR:proxyjump_not_found"
 				return 1
 			end
@@ -92,9 +88,7 @@ function __fssh_check_proxyjump --description 'Check ProxyJump existence and det
 			builtin set --local proxy_basic_errors (builtin echo "$proxy_basic_result" | command grep -c "^ERROR:" || builtin echo 0)
 
 			if builtin string match -qr '[1-9]' -- "$proxy_basic_errors"
-				set_color red
-				builtin echo "[ERROR] Host '$host': ProxyJump host '$proxy_host' has configuration errors"
-				set_color normal
+				builtin set --global --append __fssh_check_messages "E:[ERROR] Host '$host': ProxyJump host '$proxy_host' has configuration errors"
 				builtin echo "ERROR:proxyjump_config_error"
 			end
 
@@ -103,9 +97,7 @@ function __fssh_check_proxyjump --description 'Check ProxyJump existence and det
 			builtin set --local proxy_id_errors (builtin echo "$proxy_id_result" | command grep -c "^ERROR:" || builtin echo 0)
 
 			if builtin string match -qr '[1-9]' -- "$proxy_id_errors"
-				set_color red
-				builtin echo "[ERROR] Host '$host': ProxyJump host '$proxy_host' has identity file errors"
-				set_color normal
+				builtin set --global --append __fssh_check_messages "E:[ERROR] Host '$host': ProxyJump host '$proxy_host' has identity file errors"
 				builtin echo "ERROR:proxyjump_identity_error"
 			end
 

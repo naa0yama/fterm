@@ -7,6 +7,9 @@ function __fssh_config_check --description 'Validate SSH config before connectio
 	__fterm_debug "=== __fssh_config_check called ==="
 	__fterm_debug "target_host: $target_host"
 
+	# Initialize message buffer
+	builtin set --global __fssh_check_messages
+
 	# Initialize counters
 	builtin set --local error_count 0
 	builtin set --local warn_count 0
@@ -22,6 +25,7 @@ function __fssh_config_check --description 'Validate SSH config before connectio
 		set_color red
 		builtin echo "[ERROR] SSH config syntax check failed. Please fix the config first."
 		set_color normal
+		builtin set --erase __fssh_check_messages
 		return 1
 	end
 
@@ -104,18 +108,40 @@ function __fssh_config_check --description 'Validate SSH config before connectio
 		builtin echo ""
 		builtin echo "[ERROR] Config check failed: $error_count error(s), $warn_count warning(s)"
 		set_color normal
-		return 1
 	else if builtin test "$warn_count" -gt 0
 		set_color yellow
 		builtin echo ""
 		builtin echo "[WARN ] Config check passed with $warn_count warning(s)"
 		set_color normal
-		return 0
 	else
 		set_color green
 		builtin echo ""
 		builtin echo "[OK   ] Config check passed"
 		set_color normal
+	end
+
+	# Display collected messages
+	if builtin test (count $__fssh_check_messages) -gt 0
+		for msg in $__fssh_check_messages
+			builtin set --local level (builtin string sub --length 1 "$msg")
+			builtin set --local text (builtin string sub --start 3 "$msg")
+			switch "$level"
+				case "E"
+					set_color red
+				case "W"
+					set_color yellow
+			end
+			builtin echo "  $text"
+			set_color normal
+		end
+	end
+
+	# Cleanup message buffer
+	builtin set --erase __fssh_check_messages
+
+	if builtin test "$error_count" -gt 0
+		return 1
+	else
 		return 0
 	end
 end

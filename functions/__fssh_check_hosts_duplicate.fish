@@ -74,17 +74,13 @@ function __fssh_check_hosts_duplicate --description 'Check for duplicate Host de
 			# Duplicate found
 			if not builtin contains "$host" $duplicates
 				builtin set --append duplicates "$host"
-				set_color yellow
-				builtin echo "[WARN ] Duplicate Host definition: $host"
-				builtin echo "        First defined in: $seen_files[$idx]"
-				builtin echo "        Also defined in: $source"
-				set_color normal
+				builtin set --global --append __fssh_check_messages "W:[WARN ] Duplicate Host definition: $host"
+				builtin set --global --append __fssh_check_messages "W:        First defined in: $seen_files[$idx]"
+				builtin set --global --append __fssh_check_messages "W:        Also defined in: $source"
 				builtin echo "WARN:duplicate_host:$host"
 			else
 				# Already reported, just note additional occurrence
-				set_color yellow
-				builtin echo "        Also defined in: $source"
-				set_color normal
+				builtin set --global --append __fssh_check_messages "W:        Also defined in: $source"
 			end
 		else
 			builtin set --append seen_hosts "$host"

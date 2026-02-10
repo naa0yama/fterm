@@ -68,9 +68,7 @@ function __fssh_check_identity_file --description 'Check IdentityFile existence,
 
 		# Check 6: File existence
 		if not builtin test -f "$test_path"
-			set_color red
-			builtin echo "[ERROR] Host '$host': IdentityFile not found: $id_file"
-			set_color normal
+			builtin set --global --append __fssh_check_messages "E:[ERROR] Host '$host': IdentityFile not found: $id_file"
 			builtin echo "ERROR:identityfile_not_found"
 			builtin set has_error 1
 			continue
@@ -97,9 +95,7 @@ function __fssh_check_identity_file --description 'Check IdentityFile existence,
 				builtin set key_fingerprint (__fterm_run_ssh_cmd ssh-keygen -lf "$expanded_file" 2>/dev/null | command awk '{ print $2 }')
 				__fterm_debug "File is a public key: $id_file"
 			else
-				set_color red
-				builtin echo "[ERROR] Host '$host': IdentityFile is not a valid key: $id_file"
-				set_color normal
+				builtin set --global --append __fssh_check_messages "E:[ERROR] Host '$host': IdentityFile is not a valid key: $id_file"
 				builtin echo "ERROR:identityfile_invalid"
 				builtin set has_error 1
 				continue
@@ -115,12 +111,10 @@ function __fssh_check_identity_file --description 'Check IdentityFile existence,
 				# ssh-agent available, check if corresponding key is loaded
 				if builtin test -n "$key_fingerprint"
 					if not builtin string match --quiet "*$key_fingerprint*" "$agent_keys"
-						set_color red
-						builtin echo "[ERROR] Host '$host': Public key specified but not found in ssh-agent"
-						builtin echo "        IdentityFile: $id_file"
-						builtin echo "        Fingerprint: $key_fingerprint"
-						builtin echo "        Run: ssh-add <corresponding-private-key>"
-						set_color normal
+						builtin set --global --append __fssh_check_messages "E:[ERROR] Host '$host': Public key specified but not found in ssh-agent"
+						builtin set --global --append __fssh_check_messages "E:        IdentityFile: $id_file"
+						builtin set --global --append __fssh_check_messages "E:        Fingerprint: $key_fingerprint"
+						builtin set --global --append __fssh_check_messages "E:        Run: ssh-add <corresponding-private-key>"
 						builtin echo "ERROR:pubkey_not_in_agent"
 						builtin set has_error 1
 					else
@@ -129,21 +123,17 @@ function __fssh_check_identity_file --description 'Check IdentityFile existence,
 				end
 			else
 				# ssh-agent not available, public key cannot be used
-				set_color red
-				builtin echo "[ERROR] Host '$host': Public key specified but ssh-agent not available"
-				builtin echo "        IdentityFile: $id_file"
-				builtin echo "        Cannot authenticate without ssh-agent for public key"
-				set_color normal
+				builtin set --global --append __fssh_check_messages "E:[ERROR] Host '$host': Public key specified but ssh-agent not available"
+				builtin set --global --append __fssh_check_messages "E:        IdentityFile: $id_file"
+				builtin set --global --append __fssh_check_messages "E:        Cannot authenticate without ssh-agent for public key"
 				builtin echo "ERROR:pubkey_no_agent"
 				builtin set has_error 1
 			end
 		else if builtin test "$is_private_key" -eq 1
 			# Private key specified - warn about direct usage
-			set_color yellow
-			builtin echo "[WARN ] Host '$host': Private key directly specified in config"
-			builtin echo "        IdentityFile: $id_file"
-			builtin echo "        Consider using public key with ssh-agent for better security"
-			set_color normal
+			builtin set --global --append __fssh_check_messages "W:[WARN ] Host '$host': Private key directly specified in config"
+			builtin set --global --append __fssh_check_messages "W:        IdentityFile: $id_file"
+			builtin set --global --append __fssh_check_messages "W:        Consider using public key with ssh-agent for better security"
 			builtin echo "WARN:private_key_direct"
 			builtin set has_warn 1
 
@@ -154,11 +144,9 @@ function __fssh_check_identity_file --description 'Check IdentityFile existence,
 				__fterm_debug "file_perms: $file_perms"
 
 				if builtin test -n "$file_perms"; and builtin test "$file_perms" != "600"
-					set_color yellow
-					builtin echo "[WARN ] Host '$host': Private key has insecure permissions: $file_perms"
-					builtin echo "        IdentityFile: $id_file"
-					builtin echo "        Recommended: chmod 600 $test_path"
-					set_color normal
+					builtin set --global --append __fssh_check_messages "W:[WARN ] Host '$host': Private key has insecure permissions: $file_perms"
+					builtin set --global --append __fssh_check_messages "W:        IdentityFile: $id_file"
+					builtin set --global --append __fssh_check_messages "W:        Recommended: chmod 600 $test_path"
 					builtin echo "WARN:insecure_permissions"
 					builtin set has_warn 1
 				end

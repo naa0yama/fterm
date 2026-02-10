@@ -25,9 +25,7 @@ function __fssh_check_basic_config --description 'Check basic SSH config (HostNa
 	__fterm_debug "config_output line count: "(count $config_output)
 
 	if builtin test -z "$config_output"
-		set_color red
-		builtin echo "[ERROR] Host '$host': Failed to get SSH config (ssh -G failed)"
-		set_color normal
+		builtin set --global --append __fssh_check_messages "E:[ERROR] Host '$host': Failed to get SSH config (ssh -G failed)"
 		builtin echo "ERROR:ssh_config_failed"
 
 		# Restore HOME
@@ -56,45 +54,35 @@ function __fssh_check_basic_config --description 'Check basic SSH config (HostNa
 		# If HostName equals the alias, it might be intentional (connecting to actual hostname)
 		# But we should warn if it looks like an alias pattern (contains dots like org.env.hostname)
 		if builtin string match --quiet '*.*.*' "$host"
-			set_color red
-			builtin echo "[ERROR] Host '$host': HostName not configured (using alias as hostname)"
-			set_color normal
+			builtin set --global --append __fssh_check_messages "E:[ERROR] Host '$host': HostName not configured (using alias as hostname)"
 			builtin echo "ERROR:hostname_missing"
 			builtin set has_error 1
 		end
 	end
 
 	if builtin test -z "$user_val"
-		set_color red
-		builtin echo "[ERROR] Host '$host': User not configured"
-		set_color normal
+		builtin set --global --append __fssh_check_messages "E:[ERROR] Host '$host': User not configured"
 		builtin echo "ERROR:user_missing"
 		builtin set has_error 1
 	end
 
 	if builtin test -z "$port_val"
-		set_color red
-		builtin echo "[ERROR] Host '$host': Port not configured"
-		set_color normal
+		builtin set --global --append __fssh_check_messages "E:[ERROR] Host '$host': Port not configured"
 		builtin echo "ERROR:port_missing"
 		builtin set has_error 1
 	end
 
 	# Check 4: Recommended fields (IdentitiesOnly, IdentityFile) - WARN if missing
 	if builtin test -z "$identities_only"; or builtin test "$identities_only" != "yes"
-		set_color yellow
-		builtin echo "[WARN ] Host '$host': IdentitiesOnly not set to 'yes'"
-		builtin echo "        Recommendation: Set 'IdentitiesOnly yes' to prevent trying all agent keys"
-		set_color normal
+		builtin set --global --append __fssh_check_messages "W:[WARN ] Host '$host': IdentitiesOnly not set to 'yes'"
+		builtin set --global --append __fssh_check_messages "W:        Recommendation: Set 'IdentitiesOnly yes' to prevent trying all agent keys"
 		builtin echo "WARN:identitiesonly_not_set"
 		builtin set has_warn 1
 	end
 
 	if builtin test -z "$identity_file"
-		set_color yellow
-		builtin echo "[WARN ] Host '$host': IdentityFile not configured"
-		builtin echo "        Recommendation: Specify an IdentityFile for explicit key selection"
-		set_color normal
+		builtin set --global --append __fssh_check_messages "W:[WARN ] Host '$host': IdentityFile not configured"
+		builtin set --global --append __fssh_check_messages "W:        Recommendation: Specify an IdentityFile for explicit key selection"
 		builtin echo "WARN:identityfile_missing"
 		builtin set has_warn 1
 	end

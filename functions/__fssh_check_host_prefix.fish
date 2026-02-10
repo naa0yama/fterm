@@ -124,11 +124,9 @@ function __fssh_check_host_prefix --description 'Check Host prefix matches Defau
 		end
 
 		if builtin test "$broader_found" -eq 0
-			set_color red
-			builtin echo "[ERROR] Host '$host': No matching default pattern found"
-			builtin echo "        Expected: Host $wildcard_pattern"
-			builtin echo "        In file: $host_file"
-			set_color normal
+			builtin set --global --append __fssh_check_messages "E:[ERROR] Host '$host': No matching default pattern found"
+			builtin set --global --append __fssh_check_messages "E:        Expected: Host $wildcard_pattern"
+			builtin set --global --append __fssh_check_messages "E:        In file: $host_file"
 			return 1
 		end
 	end
