@@ -91,7 +91,7 @@ function __fssh_check_proxyjump --description 'Check ProxyJump existence and det
 			builtin set --local proxy_basic_result (__fssh_check_basic_config "$proxy_host" 2>&1)
 			builtin set --local proxy_basic_errors (builtin echo "$proxy_basic_result" | command grep -c "^ERROR:" || builtin echo 0)
 
-			if builtin test "$proxy_basic_errors" -gt 0
+			if builtin string match -qr '[1-9]' -- "$proxy_basic_errors"
 				set_color red
 				builtin echo "[ERROR] Host '$host': ProxyJump host '$proxy_host' has configuration errors"
 				set_color normal
@@ -102,7 +102,7 @@ function __fssh_check_proxyjump --description 'Check ProxyJump existence and det
 			builtin set --local proxy_id_result (__fssh_check_identity_file "$proxy_host" 2>&1)
 			builtin set --local proxy_id_errors (builtin echo "$proxy_id_result" | command grep -c "^ERROR:" || builtin echo 0)
 
-			if builtin test "$proxy_id_errors" -gt 0
+			if builtin string match -qr '[1-9]' -- "$proxy_id_errors"
 				set_color red
 				builtin echo "[ERROR] Host '$host': ProxyJump host '$proxy_host' has identity file errors"
 				set_color normal
@@ -113,7 +113,7 @@ function __fssh_check_proxyjump --description 'Check ProxyJump existence and det
 			builtin set --local recursive_result (__fssh_check_proxyjump "$proxy_host" $new_visited)
 			builtin set --local recursive_errors (builtin echo "$recursive_result" | command grep -c "^ERROR:" || builtin echo 0)
 
-			if builtin test "$recursive_errors" -gt 0
+			if builtin string match -qr '[1-9]' -- "$recursive_errors"
 				# Errors already reported by recursive call
 				builtin echo "$recursive_result" | command grep "^ERROR:"
 			end
