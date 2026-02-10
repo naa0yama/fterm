@@ -19,9 +19,17 @@ function __fterm_get_matched_agent_keys --description 'Get agent keys matching I
 	builtin set --local identity_files (__fterm_run_ssh_cmd ssh $config_args -G "$target_host" | command awk '/^identityfile / { print $2 }')
 	__fterm_debug "identity_files: $identity_files"
 
-	# Get agent keys
-	builtin set --local agent_output (__fterm_run_ssh_cmd ssh-add -l)
-	builtin set --local agent_status $status
+	# Get agent keys (use cache from ssh.fish/scp.fish if available)
+	builtin set --local agent_output
+	builtin set --local agent_status 1
+	if builtin set --query __fterm_cached_agent_status; and builtin test "$__fterm_cached_agent_status" -eq 0
+		builtin set agent_output $__fterm_cached_agent_keys
+		builtin set agent_status 0
+		__fterm_debug "Using cached agent keys"
+	else
+		builtin set agent_output (__fterm_run_ssh_cmd ssh-add -l)
+		builtin set agent_status $status
+	end
 	__fterm_debug "ssh-add -l status: $agent_status"
 	__fterm_debug "agent_output: $agent_output"
 

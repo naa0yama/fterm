@@ -30,11 +30,15 @@ function __fssh_check_identity_file --description 'Check IdentityFile existence,
 		return 0
 	end
 
-	# Check ssh-agent availability
+	# Check ssh-agent availability (use cache from ssh.fish/scp.fish if available)
 	builtin set --local agent_available 0
 	builtin set --local agent_keys ""
 
-	if __fterm_run_ssh_cmd ssh-add -l >/dev/null 2>&1
+	if builtin set --query __fterm_cached_agent_status; and builtin test "$__fterm_cached_agent_status" -eq 0
+		builtin set agent_available 1
+		builtin set agent_keys $__fterm_cached_agent_keys
+		__fterm_debug "Using cached agent keys"
+	else if __fterm_run_ssh_cmd ssh-add -l >/dev/null 2>&1
 		builtin set agent_available 1
 		builtin set agent_keys (__fterm_run_ssh_cmd ssh-add -l 2>/dev/null)
 		__fterm_debug "ssh-agent available, keys: $agent_keys"

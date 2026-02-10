@@ -44,7 +44,7 @@ function __fterm_run_ssh_cmd --description 'Run SSH command with timeout and CR 
 
 	# Execute with timeout and remove CR for Windows compatibility
 	# timeout is required because gpg-agent can freeze, which would freeze the terminal
-	builtin set --local output (command timeout --foreground --kill-after=5 3 "$cmd_path" $cmd_args 2>/dev/null | string replace -a \r '')
+	builtin set --local output (command timeout --foreground --kill-after=1 1 "$cmd_path" $cmd_args 2>/dev/null | string replace -a \r '')
 	builtin set --local cmd_status $pipestatus[1]
 
 	__fterm_debug "__fterm_run_ssh_cmd: status=$cmd_status"

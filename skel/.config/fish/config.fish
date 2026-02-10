@@ -1,5 +1,13 @@
 #!/usr/bin/env fish
 
+# Set SSH_AUTH_SOCK to stable symlink maintained by ~/.ssh/rc
+# This is the fish equivalent of the bash profile export
+if not builtin set --query MSYSTEM
+	if builtin test -S "$HOME/.ssh/agent.sock"
+		builtin set --global --export SSH_AUTH_SOCK "$HOME/.ssh/agent.sock"
+	end
+end
+
 # Auto-start tmux on interactive login shell
 if status is-login
 	and status is-interactive

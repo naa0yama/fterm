@@ -27,30 +27,27 @@ function scp --description 'SCP with logging support'
 		__fterm_debug "Loaded SSH_ENV: $SSH_ENV"
 	end
 
-	# Update SSH_AUTH_SOCK from tmux global environment
-	# When attaching to tmux, global environment is updated but pane environment is not.
-	# This ensures we use the latest SSH_AUTH_SOCK from agent forwarding.
-	if builtin type --query tmux; and builtin set --query TMUX
-		builtin set --local tmux_sock (command tmux show-environment SSH_AUTH_SOCK 2>/dev/null | builtin string replace 'SSH_AUTH_SOCK=' '')
-		if builtin test -n "$tmux_sock"; and builtin test -S "$tmux_sock"
-			builtin set --export SSH_AUTH_SOCK "$tmux_sock"
-			__fterm_debug "Updated SSH_AUTH_SOCK from tmux global: $tmux_sock"
-		end
-	end
-
-	# Check SSH agent connection
-	# __fterm_run_ssh_cmd includes timeout (gpg-agent can freeze, which would freeze the terminal)
-	if not __fterm_run_ssh_cmd ssh-add -l >/dev/null
+	# Check SSH agent connection and cache key list for downstream functions.
+	# This prevents repeated ssh-add calls that can freeze the terminal when
+	# the agent is unresponsive via agent forwarding (5 calls → 1 call).
+	builtin set --global __fterm_cached_agent_keys
+	builtin set --global __fterm_cached_agent_status 1
+	builtin set --local agent_output (__fterm_run_ssh_cmd ssh-add -l)
+	if builtin test $status -eq 0
+		builtin set --global __fterm_cached_agent_status 0
+		builtin set --global __fterm_cached_agent_keys $agent_output
+		set_color blue
+		builtin echo "[INFO ] ssh-add connection successful."
+		set_color normal
+		__fterm_debug "ssh-add check passed, cached (count $agent_output) keys"
+	else
 		set_color red
 		builtin echo "[ERROR] ssh-add connection failed."
 		set_color normal
 		__fterm_debug "ssh-add check failed"
+		builtin set --erase __fterm_cached_agent_keys
+		builtin set --erase __fterm_cached_agent_status
 		return 1
-	else
-		set_color blue
-		builtin echo "[INFO ] ssh-add connection successful."
-		set_color normal
-		__fterm_debug "ssh-add check passed"
 	end
 
 	# Extract remote hosts from arguments
@@ -235,6 +232,10 @@ function scp --description 'SCP with logging support'
 
 		__fterm_stop_logging "$log_file"
 	end
+
+	# Clean up agent key cache
+	builtin set --erase __fterm_cached_agent_keys
+	builtin set --erase __fterm_cached_agent_status
 
 	__fterm_debug "=== SCP function completed ==="
 	return $scp_status
