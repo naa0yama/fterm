@@ -59,9 +59,16 @@ fterm の `skel/.tmux.conf` に含まれている。tmux のデフォルト `upd
 `SSH_AUTH_SOCK` を除外する:
 
 ```tmux
+# ------------------------------------------------------------------------------
+# SSH Agent (Agent Forwarding)
+# ------------------------------------------------------------------------------
+# SSH Agent Forward 利用時、tmux が一時ソケットパスで SSH_AUTH_SOCK を上書きするのを防ぐ。
+# ~/.ssh/agent.sock は ~/.ssh/rc によって常に最新のソケットを指すシンボリンクとして維持され、
+# シェルプロファイルで SSH_AUTH_SOCK に設定される。tmux がこの値を上書きしないようにする。
 if-shell "test -z \"$MSYSTEM\"" {
     set-option -g update-environment "DISPLAY KRB5CCNAME SSH_ASKPASS SSH_AGENT_PID SSH_CONNECTION WINDOWID XAUTHORITY"
 }
+
 ```
 
 ## fterm の立場
