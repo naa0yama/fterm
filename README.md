@@ -2,23 +2,22 @@
 
 ![](docs/img/141342.gif)
 
-* fssh(Fuzzy SSH)
-  * fzf を利用した SSH 先の選択、 MSYS2 でも Win32-OpenSSH を利用した快適な接続
-  * Tmux を利用した SSH セッションごとに自動ロギング
-  * セッション終了後に自動 gz 圧縮
+- fssh(Fuzzy SSH)
+  - fzf を利用した SSH 先の選択、 MSYS2 でも Win32-OpenSSH を利用した快適な接続
+  - Tmux を利用した SSH セッションごとに自動ロギング
+  - セッション終了後に自動 gz 圧縮
 
-* [工事中] fcon(Fuzzy Console)
-  * [tio](https://github.com/tio/tio) を利用した Serial Console 接続の簡略化
-  * fzf を利用して Console デバイスの選択
-  * Tmux を利用した Console セッションごとに自動ロギング
-  * セッション終了後に自動 gz 圧縮
+- [工事中] fcon(Fuzzy Console)
+  - [tio](https://github.com/tio/tio) を利用した Serial Console 接続の簡略化
+  - fzf を利用して Console デバイスの選択
+  - Tmux を利用した Console セッションごとに自動ロギング
+  - セッション終了後に自動 gz 圧縮
 
-* flog(Fuzzy log)
-  * fterm 類で作成されたログのファイル名単位検索, 全文検索
+- flog(Fuzzy log)
+  - fterm 類で作成されたログのファイル名単位検索, 全文検索
 
-* fgen(Fuzzy configuration generater)
-  * .ssh/config template から生成
-
+- fgen(Fuzzy configuration generater)
+  - .ssh/config template から生成
 
 > [!Important]
 > ssh_config の Match 式には未対応
@@ -27,14 +26,14 @@
 
 ## これは何?
 
-手元の環境が Windows でどうしても変更出来ないけど大量にある SSH の設定を TeraTerm や Rlogin などの設定や GUI ツールに疲れ、Linux 踏み台で長年使っていた環境を改善、スクリプトを書き直して公開する。  
+手元の環境が Windows でどうしても変更出来ないけど大量にある SSH の設定を TeraTerm や Rlogin などの設定や GUI ツールに疲れ、Linux 踏み台で長年使っていた環境を改善、スクリプトを書き直して公開する。
 
 Tmux との合せ技で `.ssh/config` による接続先の管理をテキストファイルですることで設定の共有が手軽にできるメリットがあるので、 MSYS2 のターミナルと一緒に配布する。
 
 ## 使い方
 
-[Releases](https://github.com/naa0yama/fterm/releases) から最新版をダウンロードして、適当な場所に解答展開します。  
-私は、`Documents` 配下に置くことが多いです。  
+[Releases](https://github.com/naa0yama/fterm/releases) から最新版をダウンロードして、適当な場所に解答展開します。\
+私は、`Documents` 配下に置くことが多いです。
 
 `ucrt64.exe` をダブルクリックすることでターミナルが立ち上がります。
 
@@ -44,7 +43,7 @@ Tmux との合せ技で `.ssh/config` による接続先の管理をテキスト
 
 ![](docs/img/191026.png)
 
-ssh, scp は Windows 側の `.ssh/config` を参照してホスト候補を出してくれます。  
+ssh, scp は Windows 側の `.ssh/config` を参照してホスト候補を出してくれます。\
 `fssh` という独自コマンドは
 
 ## 前提
@@ -55,7 +54,6 @@ Windows 11 側には [Windows 版 OpenSSH](https://github.com/PowerShell/Win32-O
 
 ```bash
 winget install Microsoft.OpenSSH.Preview
-
 ```
 
 > [!NOTE]
@@ -63,7 +61,6 @@ winget install Microsoft.OpenSSH.Preview
 >
 > ```powershell{name="pwsh.exe"}
 > winget pin add Microsoft.OpenSSH.Preview
->
 > ```
 
 OpenSSH は ssh-agent, sshd を自動起動しようとするので無効化しておく
@@ -92,7 +89,6 @@ Stopped sshd        Automatic OpenSSH SSH Server
 
 > Set-Service -Name "sshd" -StartupType Disabled
 > Stop-Service -Name "sshd"
-
 ```
 
 ### Git
@@ -101,17 +97,16 @@ git もインストールする
 
 ```bash
 winget install Git.Git
-
 ```
 
 ## Tmux
 
-本設定集は Tmux の機能を最大限活用する。  
+本設定集は Tmux の機能を最大限活用する。\
 ターミナルの水平垂直分割やロギング設定ででは [Zellij](https://github.com/zellij-org/zellij)(ゼリッジ) にロギング機能がないなどがあり Tmux を採用している。
 
 ### 設定ファイル (.tmux.conf)
 
-`skel/.tmux.conf` に tmux の設定ファイルを用意している。以下に主要な設定を説明する。  
+`skel/.tmux.conf` に tmux の設定ファイルを用意している。以下に主要な設定を説明する。\
 通常であれば Release からダウンロードした zip を展開し初めて `ucrt64.exe` 起動した時に自動でコピーされるので個別に設定する必要はない。
 
 #### 基本設定
@@ -166,16 +161,15 @@ SSH越しでもクリップボード共有が可能。
 
 ##### 端末の対応状況
 
-| 端末             | OSC 52 Copy      | OSC 52 Paste | 備考                    |
-| :--------------- | :--------------- | :----------: | :---------------------- |
-| VSCode           | ✅ デフォルト有効 |      ❌       | -                       |
-| mintty           | ⚠️ 要設定         |   ⚠️ 要設定   | Release 配布分は設定済み |
-| WezTerm          | ✅ デフォルト有効 |      ❌       | -                       |
-| Windows Terminal | ✅ 有効           |      ❌       | 2023年以降のバージョン  |
+| 端末             | OSC 52 Copy       | OSC 52 Paste | 備考                     |
+| :--------------- | :---------------- | :----------: | :----------------------- |
+| VSCode           | ✅ デフォルト有効 |      ❌      | -                        |
+| mintty           | ⚠️ 要設定          |   ⚠️ 要設定   | Release 配布分は設定済み |
+| WezTerm          | ✅ デフォルト有効 |      ❌      | -                        |
+| Windows Terminal | ✅ 有効           |      ❌      | 2023年以降のバージョン   |
 
 > [!TIP] OSC 52 Paste が標準で無効な理由
 > セキュリティリスクのため。悪意のあるエスケープシーケンスでクリップボード内容が漏洩する可能性がある。
-
 
 | キー           | 機能                               |
 | :------------- | :--------------------------------- |
@@ -210,7 +204,6 @@ AllowPasteSelection=yes
 
 ```bash
 pacman -Syu
-
 ```
 
 ```bash
