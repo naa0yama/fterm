@@ -1,0 +1,8 @@
+[env]
+FSSH_SSH_CONF_DIR = "/app/tests/.ssh"
+RUST_LOG = "trace"
+
+[tools]
+fzf = "latest"
+ripgrep = "latest"
+tmux = "3.6a"
