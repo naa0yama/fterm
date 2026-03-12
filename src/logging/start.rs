@@ -1,0 +1,181 @@
+//! Start session logging via tmux pipe-pane.
+
+use std::fs::{self, OpenOptions};
+use std::io::Write;
+use std::path::Path;
+
+use anyhow::{Context, Result};
+use tracing::debug;
+
+use crate::external::CommandRunner;
+
+/// Start session logging by writing a header and enabling tmux pipe-pane.
+///
+/// Creates the parent directory for `log_path` if it does not exist, writes
+/// SSH config details and agent keys as a header block, then enables
+/// `tmux pipe-pane` to continuously append filtered output to the log file.
+///
+/// # Errors
+/// Returns an error if directory creation, file I/O, or the tmux command fails.
+pub fn start(
+    runner: &dyn CommandRunner,
+    log_path: &Path,
+    target_host: &str,
+    ssh_details: &[String],
+    agent_keys: &[String],
+) -> Result<()> {
+    // Ensure the log directory exists.
+    if let Some(parent) = log_path.parent() {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("failed to create log directory: {}", parent.display()))?;
+    }
+
+    debug!(path = %log_path.display(), host = target_host, "writing log header");
+
+    // Write header to log file.
+    let mut file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(log_path)
+        .with_context(|| format!("failed to open log file: {}", log_path.display()))?;
+
+    if !ssh_details.is_empty() {
+        writeln!(file, "=== SSH Config ===")
+            .with_context(|| format!("failed to write header to log: {}", log_path.display()))?;
+        for detail in ssh_details {
+            writeln!(file, "{detail}").with_context(|| {
+                format!("failed to write SSH detail to log: {}", log_path.display())
+            })?;
+        }
+    }
+    if !agent_keys.is_empty() {
+        writeln!(file, "=== Matched Agent Keys ===")
+            .with_context(|| format!("failed to write header to log: {}", log_path.display()))?;
+        for key in agent_keys {
+            writeln!(file, "{key}").with_context(|| {
+                format!("failed to write agent key to log: {}", log_path.display())
+            })?;
+        }
+    }
+    if !ssh_details.is_empty() || !agent_keys.is_empty() {
+        writeln!(file)
+            .with_context(|| format!("failed to write separator to log: {}", log_path.display()))?;
+    }
+
+    // Set up tmux pipe-pane with the log-filter command.
+    let log_path_str = log_path
+        .to_str()
+        .context("log path contains invalid UTF-8")?;
+    let pipe_cmd = format!("exec fterm log-filter >> '{log_path_str}'");
+
+    debug!(pipe_cmd = %pipe_cmd, "enabling tmux pipe-pane");
+
+    let output = runner
+        .run("tmux", &["pipe-pane", &pipe_cmd], 5)
+        .context("failed to run tmux pipe-pane")?;
+
+    if output.exit_code != 0 {
+        anyhow::bail!(
+            "tmux pipe-pane exited with code {}: {}",
+            output.exit_code,
+            output.stderr.trim()
+        );
+    }
+
+    // Set pane option to indicate logging is active.
+    let set_output = runner
+        .run(
+            "tmux",
+            &["set-option", "-p", "@fterm_logging", log_path_str],
+            5,
+        )
+        .context("failed to set @fterm_logging pane option")?;
+    if set_output.exit_code != 0 {
+        debug!(
+            exit_code = set_output.exit_code,
+            "could not set @fterm_logging (non-fatal)"
+        );
+    }
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used)]
+
+    use tempfile::TempDir;
+
+    use crate::external::{CommandOutput, MockCommandRunner};
+
+    use super::*;
+
+    #[test]
+    fn creates_log_directory_and_writes_header() {
+        // Arrange
+        let tmp = TempDir::new().unwrap();
+        let log_path = tmp.path().join("subdir").join("session.log");
+        let runner = MockCommandRunner::new();
+        let details = vec![
+            String::from("hostname example.com"),
+            String::from("port 22"),
+        ];
+        let keys = vec![String::from("SHA256:abc123 user@host (ED25519)")];
+
+        // Act
+        start(&runner, &log_path, "example.com", &details, &keys).unwrap();
+
+        // Assert
+        let content = fs::read_to_string(&log_path).unwrap();
+        assert!(content.contains("=== SSH Config ==="));
+        assert!(content.contains("hostname example.com"));
+        assert!(content.contains("port 22"));
+        assert!(content.contains("=== Matched Agent Keys ==="));
+        assert!(content.contains("SHA256:abc123 user@host (ED25519)"));
+        // Verify trailing blank line separator
+        assert!(content.ends_with('\n'));
+    }
+
+    #[test]
+    fn returns_error_on_tmux_failure() {
+        // Arrange
+        let tmp = TempDir::new().unwrap();
+        let log_path = tmp.path().join("session.log");
+        let log_path_str = log_path.to_str().unwrap();
+        let pipe_key = format!("tmux pipe-pane exec fterm log-filter >> '{log_path_str}'");
+        let runner = MockCommandRunner::new().with_run_response(
+            &pipe_key,
+            CommandOutput {
+                exit_code: 1,
+                stdout: String::new(),
+                stderr: String::from("no server running"),
+            },
+        );
+        let details = vec![];
+        let keys = vec![];
+
+        // Act
+        let result = start(&runner, &log_path, "host", &details, &keys);
+
+        // Assert
+        assert!(result.is_err());
+        let err_msg = format!("{:#}", result.unwrap_err());
+        assert!(err_msg.contains("tmux pipe-pane exited with code 1"));
+    }
+
+    #[test]
+    fn writes_empty_header_when_no_details() {
+        // Arrange
+        let tmp = TempDir::new().unwrap();
+        let log_path = tmp.path().join("session.log");
+        let runner = MockCommandRunner::new();
+
+        // Act
+        start(&runner, &log_path, "host", &[], &[]).unwrap();
+
+        // Assert
+        let content = fs::read_to_string(&log_path).unwrap();
+        // No details/keys means no header at all
+        assert_eq!(content, "");
+    }
+}
