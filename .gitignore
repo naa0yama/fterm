@@ -23,7 +23,9 @@ lefthook-local.yml
 .history/
 
 # tests
+coverage.svg
 lcov.info
+time.svg
 
 # tmp
 tmp/
