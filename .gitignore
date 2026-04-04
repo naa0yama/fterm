@@ -15,6 +15,7 @@ target
 
 # Claude Code
 .claude/*.local.json
+.mcp.json
 
 # local Lefthook
 lefthook-local.yml
