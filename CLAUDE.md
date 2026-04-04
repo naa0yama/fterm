@@ -27,6 +27,7 @@ All tasks use `mise run <task>`:
 | Clean (full)          | `mise run clean`              |
 | Clean (sweep)         | `mise run clean:sweep`        |
 | Clean (cache)         | `mise run clean:cache`        |
+| O2 (install)          | `mise run o2:install`         |
 
 ## Commit Convention
 

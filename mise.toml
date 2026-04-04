@@ -1,5 +1,6 @@
 [env]
-RUSTC_WRAPPER = "sccache"
+## renovate: datasource=github-releases packageName=openobserve/openobserve versioning=semver automerge=true
+OPENOBSERVE_VERSION = "v0.70.1"
 
 [tools]
 dprint = "0.52.0"
@@ -125,4 +126,49 @@ description = "Show cargo cache info and clean registry cache"
 run = """
 cargo cache
 cargo cache --autoclean
+"""
+
+[tasks."o2:install"]
+description = "Install OpenObserve to ~/.local/bin"
+run = """
+set -euo pipefail
+
+install_dir="${HOME}/.local/bin"
+target="${install_dir}/openobserve"
+version="${OPENOBSERVE_VERSION}"
+
+# Idempotent: skip if same version already installed
+if [ -x "${target}" ]; then
+  installed="$("${target}" --version 2>/dev/null | grep -oP '\\d+\\.\\d+\\.\\d+' || true)"
+  expected="${version#v}"
+  if [ "${installed}" = "${expected}" ]; then
+    echo "OpenObserve ${version} already installed at ${target}"
+    exit 0
+  fi
+fi
+
+# Architecture detection
+case "$(uname -m)" in
+  x86_64)  arch="amd64" ;;
+  aarch64) arch="arm64" ;;
+  *)
+    echo "Error: unsupported architecture $(uname -m)" >&2
+    exit 1
+    ;;
+esac
+
+filename="openobserve-${version}-linux-${arch}-musl.tar.gz"
+url="https://github.com/openobserve/openobserve/releases/download/${version}/${filename}"
+tmpfile="$(mktemp)"
+trap 'rm -f "${tmpfile}"' EXIT
+
+echo "Downloading OpenObserve ${version} (${arch})..."
+curl -fSL --retry 3 --retry-delay 2 --retry-connrefused -o "${tmpfile}" "${url}"
+
+mkdir -p "${install_dir}"
+tar -xzf "${tmpfile}" -C "${install_dir}"
+chmod +x "${target}"
+
+echo "OpenObserve ${version} installed to ${target}"
+"${target}" --version
 """

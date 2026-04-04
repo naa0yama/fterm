@@ -39,6 +39,9 @@ chmod +x .githooks/*
 mise trust /app/mise.toml
 mise install
 
+# Install OpenObserve
+echo "Installing OpenObserve..."
+mise run o2:install
 
 # 1. authorized_keys setup
 rm -rf ~/.ssh/id_ed25519 ~/.ssh/id_ed25519.pub
