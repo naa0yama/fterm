@@ -186,7 +186,7 @@ debug = 2 #											ワークスペースメンバーにフルデバッグ情�
 debug = 1 #											外部依存はラインテーブルのみ(サイズ削減)
 
 [profile.release]
-strip = "symbols"
+strip = "debuginfo"
 debug = 1 #											リリースビルドでもスタックトレース可能に
 lto = "thin"
 opt-level = "z"
