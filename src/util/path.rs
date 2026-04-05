@@ -35,6 +35,7 @@ pub fn expand_tilde(path: &str) -> PathBuf {
 /// Runs `cygpath -m $USERPROFILE` to produce a mixed-mode path suitable for
 /// Windows OpenSSH. Returns `None` when not on MSYS2 or if `USERPROFILE`
 /// is unset.
+// NOTEST(env): requires MSYSTEM env var and cygpath binary (MSYS2-only)
 #[must_use]
 pub fn msys2_home() -> Option<String> {
     if std::env::var("MSYSTEM").is_err() {
@@ -62,6 +63,7 @@ const WIN_SSH_DIRS: &[&str] = &[
 ///
 /// Searches known Windows OpenSSH directories for `{name}.exe`.
 /// Returns `None` if not on MSYS2 or no executable found.
+// NOTEST(env): requires MSYSTEM env var and Windows OpenSSH paths (MSYS2-only)
 #[must_use]
 pub fn resolve_win_ssh_command(name: &str) -> Option<String> {
     if std::env::var("MSYSTEM").is_err() {
@@ -85,6 +87,7 @@ pub fn resolve_win_ssh_command(name: &str) -> Option<String> {
 /// # Errors
 ///
 /// Returns an error if `cygpath` cannot be spawned on MSYS2.
+// NOTEST(env): MSYS2 branch requires cygpath; non-MSYS2 path is tested via existing tests
 pub fn to_win_mixed(path: &Path) -> Result<String> {
     if std::env::var("MSYSTEM").is_ok() {
         let output = Command::new("cygpath")

@@ -38,6 +38,7 @@ use crate::validate::orchestrator::{format_summary, run_all_checks};
 ///
 /// Returns an error if any internal operation (tmux, logging, validation)
 /// fails unexpectedly.
+#[tracing::instrument(skip(runner, args), err)]
 #[allow(clippy::too_many_lines)]
 pub fn run(runner: &dyn CommandRunner, args: &[String]) -> Result<i32> {
     // Step 1: Record start time

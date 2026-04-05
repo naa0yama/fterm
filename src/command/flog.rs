@@ -28,6 +28,7 @@ pub fn run() -> Result<i32> {
 ///
 /// `select_fn` receives the log file paths and the log directory prefix,
 /// returning the selected path (if any).
+#[tracing::instrument(skip(select_fn), err)]
 fn run_inner<F>(select_fn: F) -> Result<i32>
 where
     F: FnOnce(&[String], &str) -> Result<Option<String>>,
@@ -99,6 +100,7 @@ fn build_log_items(log_files: &[PathBuf]) -> Vec<String> {
 /// Supports two modes via key bindings:
 /// - File mode (default): browse log files with preview
 /// - Search mode (Ctrl-S): search content via `rg --search-zip`
+// NOTEST(infra): requires interactive fzf terminal session
 fn run_fzf_log_selection(items: &[String], log_dir: &str) -> Result<Option<String>> {
     let preview_cmd = "f={}; if [[ $f == *.gz ]]; then zcat \"$f\" 2>/dev/null | head --lines=500; else head --lines=500 \"$f\" 2>/dev/null; fi";
 

@@ -86,6 +86,7 @@ pub fn parse_ssh_g_values(output: &str, key: &str) -> Vec<String> {
 ///
 /// # Errors
 /// Returns an error if any critical I/O operation fails.
+#[tracing::instrument(skip(runner, config_files, hosts, config_args), err)]
 #[allow(clippy::too_many_lines)]
 pub fn run_all_checks(
     runner: &dyn CommandRunner,

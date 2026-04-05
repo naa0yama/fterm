@@ -87,6 +87,7 @@ pub trait CommandRunner {
 /// Builds the full argument list (`-F cfg1 -F cfg2 … user_args…`), runs the
 /// command via `std::process::Command::status()`, and returns the exit code.
 /// Used for interactive sessions (SSH, SCP) that may run for a long time.
+#[tracing::instrument(skip(config_args))]
 pub fn exec_with_config(command_name: &str, args: &[String], config_args: &[String]) -> i32 {
     let cmd = resolve_ssh_command(command_name);
     let mut full_args: Vec<&str> = Vec::new();
@@ -120,6 +121,7 @@ pub fn exec_with_config(command_name: &str, args: &[String], config_args: &[Stri
 /// # Errors
 ///
 /// Returns an error if the command cannot be spawned.
+// NOTEST(ffi): Unix exec() replaces the process; success path never returns
 pub fn exec_passthrough(cmd: &str, args: &[&str]) -> Result<i32> {
     #[cfg(unix)]
     {
@@ -164,6 +166,7 @@ impl CommandRunner for RealCommandRunner {
     ///
     /// # Errors
     /// Returns an error only when the command cannot be spawned.
+    #[tracing::instrument(skip(self), err)]
     fn run(&self, cmd: &str, args: &[&str], timeout_secs: u64) -> Result<CommandOutput> {
         debug!(
             command = cmd,
@@ -244,6 +247,7 @@ impl CommandRunner for RealCommandRunner {
     ///
     /// # Errors
     /// Returns an error if the command cannot be spawned.
+    #[tracing::instrument(skip(self), err)]
     fn run_interactive(&self, cmd: &str, args: &[&str]) -> Result<i32> {
         debug!(command = cmd, ?args, "spawning interactive command");
 
@@ -262,6 +266,7 @@ impl CommandRunner for RealCommandRunner {
     ///
     /// # Errors
     /// Returns an error if `ssh -G` cannot be spawned or exits with non-zero.
+    #[tracing::instrument(skip(self, config_args), err)]
     fn ssh_resolve(&self, host: &str, config_args: &[String]) -> Result<String> {
         let mut args: Vec<&str> = Vec::new();
         for arg in config_args {

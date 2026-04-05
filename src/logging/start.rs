@@ -17,6 +17,7 @@ use crate::external::CommandRunner;
 ///
 /// # Errors
 /// Returns an error if directory creation, file I/O, or the tmux command fails.
+#[tracing::instrument(skip(runner, ssh_details, agent_keys), err)]
 pub fn start(
     runner: &dyn CommandRunner,
     log_path: &Path,

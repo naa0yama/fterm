@@ -23,7 +23,9 @@ use tracing_subscriber::util::SubscriberInitExt;
 
 use crate::cli::{Cli, Commands};
 
+// NOTEST(unreachable): process entry point; global init and process::exit are not unit-testable
 fn main() {
+    // NOTEST(env): OTel feature gate; compiled only with --features otel
     #[cfg(not(feature = "otel"))]
     {
         fmt()

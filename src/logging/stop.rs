@@ -17,6 +17,7 @@ use crate::external::CommandRunner;
 ///
 /// # Errors
 /// Returns an error if the tmux command, file I/O, or gzip compression fails.
+#[tracing::instrument(skip(runner), err)]
 pub fn stop(runner: &dyn CommandRunner, log_path: &Path) -> Result<()> {
     debug!(path = %log_path.display(), "stopping tmux pipe-pane");
 

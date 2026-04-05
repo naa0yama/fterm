@@ -36,6 +36,7 @@ pub fn run(runner: &dyn CommandRunner) -> Result<i32> {
 ///
 /// Accepts an `ssh_home` path and a selection function so callers can
 /// substitute the interactive fzf UI with a test double.
+#[tracing::instrument(skip(_runner, select_fn), err)]
 fn run_inner<F>(_runner: &dyn CommandRunner, ssh_home: &Path, select_fn: F) -> Result<i32>
 where
     F: FnOnce(&[String], &[PathBuf]) -> Result<Option<String>>,
@@ -82,6 +83,7 @@ where
 }
 
 /// Launch fzf with SSH host items and return the selected hostname.
+// NOTEST(infra): requires interactive fzf terminal session
 fn run_fzf_selection(hosts: &[String], config_files: &[PathBuf]) -> Result<Option<String>> {
     let files_arg: String = config_files
         .iter()
