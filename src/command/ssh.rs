@@ -932,6 +932,61 @@ mod tests {
     }
 
     #[test]
+    #[serial(env)]
+    fn pre_connect_checks_not_in_tmux_delegates() {
+        // Arrange — TMUX is unset; mock tmux commands to simulate delegation
+        use crate::external::{CommandOutput, MockCommandRunner};
+
+        let original_tmux = env::var("TMUX").ok();
+        // SAFETY: test runs single-threaded; env var is restored immediately.
+        unsafe { env::remove_var("TMUX") };
+
+        // Mock ensure_tmux: tmux -V succeeds, has-session fails (no session),
+        // new-session succeeds, send-keys succeeds → returns DelegatedToTmux
+        let runner = MockCommandRunner::new()
+            .with_run_response(
+                "tmux -V",
+                CommandOutput {
+                    exit_code: 0,
+                    stdout: String::from("tmux 3.3a"),
+                    stderr: String::new(),
+                },
+            )
+            .with_run_response(
+                "tmux has-session -t login-session",
+                CommandOutput {
+                    exit_code: 1,
+                    stdout: String::new(),
+                    stderr: String::new(),
+                },
+            )
+            .with_run_response(
+                "tmux new-session -d -s login-session",
+                CommandOutput {
+                    exit_code: 0,
+                    stdout: String::new(),
+                    stderr: String::new(),
+                },
+            );
+        let args: Vec<String> = vec![String::from("server1")];
+
+        // Act
+        let result = pre_connect_checks(&runner, &args, "server1").unwrap();
+
+        // Cleanup
+        // SAFETY: test runs single-threaded; restoring env state.
+        unsafe {
+            match &original_tmux {
+                Some(v) => env::set_var("TMUX", v),
+                None => env::remove_var("TMUX"),
+            }
+        };
+
+        // Assert — delegated to tmux means early exit with Some(0)
+        assert_eq!(result, Some(0));
+    }
+
+    #[test]
     fn generate_log_path_uses_tmux_identifiers() {
         // Arrange
         use crate::external::{CommandOutput, MockCommandRunner};

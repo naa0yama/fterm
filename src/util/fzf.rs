@@ -259,6 +259,24 @@ mod tests {
     }
 
     #[test]
+    fn run_with_empty_items_returns_none_or_err() {
+        // Arrange — no items: fzf exits 1 (no match) in non-TTY, returns Ok(None)
+        // In some environments fzf may exit 2 (usage error); treat both as acceptable.
+        let opts = default_opts();
+
+        // Act
+        let result = run(&[], &opts);
+
+        // Assert — either Ok(None) (no match) or Err (unexpected code) is acceptable;
+        // Ok(Some(_)) would mean fzf selected something from an empty input, which is invalid.
+        // NOTEST(infra): non-TTY fzf may emit exit 2 → Err arm is reachable in CI
+        assert!(
+            matches!(result, Ok(None) | Err(_)),
+            "expected Ok(None) or Err for empty input"
+        );
+    }
+
+    #[test]
     fn build_args_all_options() {
         // Arrange
         let opts = Options {

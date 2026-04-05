@@ -279,4 +279,31 @@ mod tests {
         // Cleanup
         unsafe { env::remove_var("FTERM_LOG_DIR_PREFIX") };
     }
+
+    #[test]
+    #[serial(env)]
+    fn run_inner_select_fn_error_propagates() {
+        // Arrange
+        let dir = TempDir::new().unwrap();
+        let config = dir.path().join("config");
+        std::fs::write(&config, "Host beta\n  HostName beta.example.com\n").unwrap();
+        let runner = MockCommandRunner::new();
+        unsafe { env::set_var("FTERM_LOG_DIR_PREFIX", "/nonexistent/for/test") };
+
+        // Act — select_fn returns an error
+        let result = run_inner(&runner, dir.path(), |_hosts, _files| {
+            Err(anyhow::anyhow!("fzf crashed unexpectedly"))
+        });
+
+        // Cleanup
+        unsafe { env::remove_var("FTERM_LOG_DIR_PREFIX") };
+
+        // Assert — error should propagate
+        assert!(result.is_err());
+        let err_msg = format!("{:#}", result.unwrap_err());
+        assert!(
+            err_msg.contains("fzf crashed") || err_msg.contains("fzf host selection failed"),
+            "unexpected error: {err_msg}"
+        );
+    }
 }

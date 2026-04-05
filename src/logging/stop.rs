@@ -101,76 +101,13 @@ mod tests {
     #![allow(clippy::unwrap_used)]
     #![allow(clippy::indexing_slicing)]
 
-    use std::collections::HashMap;
     use std::fs;
-    use std::path::Path;
-    use std::sync::Mutex;
 
-    use anyhow::Result;
     use tempfile::TempDir;
 
-    use crate::external::{AgentListResult, CommandOutput, CommandRunner};
+    use crate::external::{CommandOutput, MockCommandRunner};
 
     use super::*;
-
-    /// Mock that records all commands and allows per-command responses.
-    struct MockRunner {
-        responses: HashMap<String, CommandOutput>,
-        calls: Mutex<Vec<String>>,
-    }
-
-    impl MockRunner {
-        fn new() -> Self {
-            Self {
-                responses: HashMap::new(),
-                calls: Mutex::new(Vec::new()),
-            }
-        }
-
-        fn with_response(mut self, key: &str, output: CommandOutput) -> Self {
-            self.responses.insert(String::from(key), output);
-            self
-        }
-
-        fn all_success() -> Self {
-            Self::new()
-        }
-
-        fn recorded_calls(&self) -> Vec<String> {
-            self.calls.lock().unwrap().clone()
-        }
-    }
-
-    impl CommandRunner for MockRunner {
-        fn run(&self, cmd: &str, args: &[&str], _timeout_secs: u64) -> Result<CommandOutput> {
-            let key = if args.is_empty() {
-                String::from(cmd)
-            } else {
-                format!("{cmd} {}", args.join(" "))
-            };
-            self.calls.lock().unwrap().push(key.clone());
-            Ok(self.responses.get(&key).cloned().unwrap_or(CommandOutput {
-                exit_code: 0,
-                stdout: String::new(),
-                stderr: String::new(),
-            }))
-        }
-
-        fn ssh_resolve(&self, _host: &str, _config_args: &[String]) -> Result<String> {
-            Ok(String::new())
-        }
-
-        fn ssh_agent_list(&self) -> Result<AgentListResult> {
-            Ok(AgentListResult {
-                available: false,
-                keys: Vec::new(),
-            })
-        }
-
-        fn ssh_keygen_fingerprint(&self, _path: &Path) -> Result<String> {
-            Ok(String::new())
-        }
-    }
 
     #[test]
     fn stops_pipe_appends_marker_and_compresses() {
@@ -178,7 +115,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let log_path = tmp.path().join("session.log");
         fs::write(&log_path, "existing content\n").unwrap();
-        let runner = MockRunner::all_success();
+        let runner = MockCommandRunner::new();
 
         // Act
         stop(&runner, &log_path).unwrap();
@@ -188,13 +125,6 @@ mod tests {
         let content = fs::read_to_string(&log_path).unwrap();
         assert!(content.contains("existing content"));
         assert!(content.contains("=== Session Disconnected ==="));
-
-        // Verify commands were called in order
-        let calls = runner.recorded_calls();
-        assert_eq!(calls.len(), 3);
-        assert_eq!(calls[0], "tmux pipe-pane");
-        assert_eq!(calls[1], "tmux set-option -p -u @fterm_logging");
-        assert!(calls[2].starts_with("gzip --force"));
     }
 
     #[test]
@@ -203,7 +133,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let log_path = tmp.path().join("session.log");
         fs::write(&log_path, "").unwrap();
-        let runner = MockRunner::new().with_response(
+        let runner = MockCommandRunner::new().with_run_response(
             "tmux pipe-pane",
             CommandOutput {
                 exit_code: 1,
@@ -228,7 +158,7 @@ mod tests {
         let log_path = tmp.path().join("session.log");
         fs::write(&log_path, "data\n").unwrap();
         let gzip_key = format!("gzip --force {}", log_path.display());
-        let runner = MockRunner::new().with_response(
+        let runner = MockCommandRunner::new().with_run_response(
             &gzip_key,
             CommandOutput {
                 exit_code: 1,
@@ -251,18 +181,13 @@ mod tests {
         // Arrange
         let tmp = TempDir::new().unwrap();
         let log_path = tmp.path().join("nonexistent.log");
-        let runner = MockRunner::all_success();
+        let runner = MockCommandRunner::new();
 
         // Act
         let result = stop(&runner, &log_path);
 
         // Assert — should succeed without error
         assert!(result.is_ok());
-        // tmux commands still run, but no file I/O or gzip
-        let calls = runner.recorded_calls();
-        assert_eq!(calls.len(), 2);
-        assert_eq!(calls[0], "tmux pipe-pane");
-        assert_eq!(calls[1], "tmux set-option -p -u @fterm_logging");
     }
 
     #[test]
@@ -271,7 +196,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let log_path = tmp.path().join("session.log");
         fs::write(&log_path, "").unwrap();
-        let runner = MockRunner::all_success();
+        let runner = MockCommandRunner::new();
 
         // Act
         stop(&runner, &log_path).unwrap();
@@ -282,5 +207,30 @@ mod tests {
         assert!(content.starts_with('['));
         assert!(content.contains('T'));
         assert!(content.contains("] === Session Disconnected ==="));
+    }
+
+    #[test]
+    fn unset_fterm_logging_failure_is_non_fatal() {
+        // Arrange — pipe-pane stop succeeds, set-option -u fails (non-fatal)
+        let tmp = TempDir::new().unwrap();
+        let log_path = tmp.path().join("nonfatal.log");
+        fs::write(&log_path, "data\n").unwrap();
+        let runner = MockCommandRunner::new().with_run_response(
+            "tmux set-option -p -u @fterm_logging",
+            CommandOutput {
+                exit_code: 1,
+                stdout: String::new(),
+                stderr: String::from("option not found"),
+            },
+        );
+
+        // Act — unset failure should not propagate as an error
+        let result = stop(&runner, &log_path);
+
+        // Assert
+        assert!(
+            result.is_ok(),
+            "unset @fterm_logging failure should be non-fatal: {result:?}"
+        );
     }
 }

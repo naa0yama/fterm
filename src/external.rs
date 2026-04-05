@@ -821,4 +821,160 @@ mod tests {
         // Act — just verify it does not panic
         let _result = runner.ssh_resolve("localhost", &[]);
     }
+
+    // -----------------------------------------------------------------------
+    // RealCommandRunner timeout-path tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn real_runner_run_with_timeout_captures_stdout() {
+        // Arrange
+        let runner = RealCommandRunner::new();
+
+        // Act — timeout > 0 exercises the try_wait loop path
+        let result = runner.run("echo", &["hello-timeout"], 5).unwrap();
+
+        // Assert
+        assert_eq!(result.exit_code, 0);
+        assert_eq!(result.stdout, "hello-timeout\n");
+    }
+
+    #[test]
+    fn real_runner_run_with_timeout_nonzero_exit() {
+        // Arrange
+        let runner = RealCommandRunner::new();
+
+        // Act — false exits with 1; timeout path handles this
+        let result = runner.run("false", &[], 5).unwrap();
+
+        // Assert
+        assert_ne!(result.exit_code, 0);
+    }
+
+    #[test]
+    fn real_runner_run_with_timeout_spawn_error() {
+        // Arrange
+        let runner = RealCommandRunner::new();
+
+        // Act — nonexistent command with timeout > 0 should return an error
+        let result = runner.run("this_command_does_not_exist_timeout_xyz", &[], 5);
+
+        // Assert
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn real_runner_run_timeout_kills_long_process() {
+        // Arrange
+        let runner = RealCommandRunner::new();
+
+        // Act — sleep 60 with 1s timeout should bail with timeout error
+        let result = runner.run("sleep", &["60"], 1);
+
+        // Assert — should fail with a timeout error
+        assert!(result.is_err());
+        let err_msg = format!("{:#}", result.unwrap_err());
+        assert!(err_msg.contains("timed out") || err_msg.contains("timeout"));
+    }
+
+    // -----------------------------------------------------------------------
+    // MockCommandRunner unused-method tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn mock_ssh_resolve_error_returns_err() {
+        // Arrange
+        let runner =
+            MockCommandRunner::new().with_ssh_resolve_error("badhost", "line 5: bad option");
+
+        // Act
+        let result = runner.ssh_resolve("badhost", &[]);
+
+        // Assert
+        assert!(result.is_err());
+        let err_msg = format!("{:#}", result.unwrap_err());
+        assert!(err_msg.contains("bad option"));
+    }
+
+    #[test]
+    fn mock_fingerprint_error_returns_err() {
+        // Arrange
+        let runner = MockCommandRunner::new()
+            .with_fingerprint_error("/home/user/.ssh/id_rsa", "invalid key format");
+
+        // Act
+        let result = runner.ssh_keygen_fingerprint(Path::new("/home/user/.ssh/id_rsa"));
+
+        // Assert
+        assert!(result.is_err());
+        let err_msg = format!("{:#}", result.unwrap_err());
+        assert!(err_msg.contains("invalid key format"));
+    }
+
+    #[test]
+    fn mock_interactive_returns_registered_code() {
+        // Arrange
+        let runner = MockCommandRunner::new().with_interactive_response("tmux attach", 2);
+
+        // Act
+        let code = runner.run_interactive("tmux", &["attach"]).unwrap();
+
+        // Assert
+        assert_eq!(code, 2);
+    }
+
+    #[test]
+    fn mock_interactive_returns_default_for_unknown() {
+        // Arrange
+        let runner = MockCommandRunner::new();
+
+        // Act
+        let code = runner.run_interactive("unknown-cmd", &[]).unwrap();
+
+        // Assert — default is 0
+        assert_eq!(code, 0);
+    }
+
+    // -----------------------------------------------------------------------
+    // exec_with_config tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn exec_with_config_returns_zero_for_true() {
+        // Arrange — `true` always exits 0; no config args
+        let args: Vec<String> = vec![];
+        let config_args: Vec<String> = vec![];
+
+        // Act
+        let code = exec_with_config("true", &args, &config_args);
+
+        // Assert
+        assert_eq!(code, 0);
+    }
+
+    #[test]
+    fn exec_with_config_returns_nonzero_for_false() {
+        // Arrange — `false` always exits 1; no config args
+        let args: Vec<String> = vec![];
+        let config_args: Vec<String> = vec![];
+
+        // Act
+        let code = exec_with_config("false", &args, &config_args);
+
+        // Assert
+        assert_ne!(code, 0);
+    }
+
+    #[test]
+    fn exec_with_config_returns_1_for_nonexistent_command() {
+        // Arrange
+        let args: Vec<String> = vec![];
+        let config_args: Vec<String> = vec![];
+
+        // Act — nonexistent binary → Err branch → returns 1
+        let code = exec_with_config("__nonexistent_command_xyz__", &args, &config_args);
+
+        // Assert
+        assert_eq!(code, 1);
+    }
 }

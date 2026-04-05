@@ -327,6 +327,7 @@ mod tests {
 
     use super::*;
     use crate::external::AgentListResult;
+    use crate::external::CommandOutput;
     use crate::external::MockCommandRunner;
 
     #[test]
@@ -713,7 +714,7 @@ mod tests {
         let runner = MockCommandRunner::new()
             .with_run_response(
                 "tmux select-pane -P default",
-                crate::external::CommandOutput {
+                CommandOutput {
                     exit_code: 1,
                     stdout: String::new(),
                     stderr: String::from("no server"),
@@ -721,7 +722,7 @@ mod tests {
             )
             .with_run_response(
                 "tmux select-pane -T ",
-                crate::external::CommandOutput {
+                CommandOutput {
                     exit_code: 1,
                     stdout: String::new(),
                     stderr: String::from("no server"),
@@ -729,7 +730,7 @@ mod tests {
             )
             .with_run_response(
                 "tmux set-option -p -u @fterm_ssh_host",
-                crate::external::CommandOutput {
+                CommandOutput {
                     exit_code: 1,
                     stdout: String::new(),
                     stderr: String::from("no server"),
@@ -749,7 +750,7 @@ mod tests {
         let runner = MockCommandRunner::new()
             .with_run_response(
                 "tmux select-pane -T scp:errhost",
-                crate::external::CommandOutput {
+                CommandOutput {
                     exit_code: 1,
                     stdout: String::new(),
                     stderr: String::from("no pane"),
@@ -757,7 +758,7 @@ mod tests {
             )
             .with_run_response(
                 "tmux set-window-option automatic-rename off",
-                crate::external::CommandOutput {
+                CommandOutput {
                     exit_code: 1,
                     stdout: String::new(),
                     stderr: String::from("no window"),
@@ -765,7 +766,7 @@ mod tests {
             )
             .with_run_response(
                 "tmux set-option -p @fterm_ssh_host errhost",
-                crate::external::CommandOutput {
+                CommandOutput {
                     exit_code: 1,
                     stdout: String::new(),
                     stderr: String::from("no pane"),
@@ -780,6 +781,64 @@ mod tests {
             result.is_ok(),
             "setup should succeed even with pane errors: {result:?}"
         );
+    }
+
+    #[test]
+    #[serial(env)]
+    fn pre_connect_checks_not_in_tmux_delegates() {
+        // Arrange — TMUX is unset; mock tmux commands to simulate delegation
+        let original_tmux = env::var("TMUX").ok();
+        // SAFETY: test runs single-threaded; env var is restored immediately.
+        unsafe { env::remove_var("TMUX") };
+
+        // Mock ensure_tmux: tmux -V succeeds, has-session fails (no session),
+        // new-session succeeds → DelegatedToTmux
+        let runner = MockCommandRunner::new()
+            .with_run_response(
+                "tmux -V",
+                CommandOutput {
+                    exit_code: 0,
+                    stdout: String::from("tmux 3.3a"),
+                    stderr: String::new(),
+                },
+            )
+            .with_run_response(
+                "tmux has-session -t login-session",
+                CommandOutput {
+                    exit_code: 1,
+                    stdout: String::new(),
+                    stderr: String::new(),
+                },
+            )
+            .with_run_response(
+                "tmux new-session -d -s login-session",
+                CommandOutput {
+                    exit_code: 0,
+                    stdout: String::new(),
+                    stderr: String::new(),
+                },
+            );
+        let args = vec![
+            String::from("scp"),
+            String::from("file.txt"),
+            String::from("host:~/"),
+        ];
+        let remote_hosts = vec![String::from("host")];
+
+        // Act
+        let result = pre_connect_checks(&runner, &args, &remote_hosts).unwrap();
+
+        // Cleanup
+        // SAFETY: test runs single-threaded; restoring env state.
+        unsafe {
+            match &original_tmux {
+                Some(v) => env::set_var("TMUX", v),
+                None => env::remove_var("TMUX"),
+            }
+        };
+
+        // Assert — delegated to tmux means early exit with Some(0)
+        assert_eq!(result, Some(0));
     }
 
     #[test]

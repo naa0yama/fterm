@@ -110,3 +110,52 @@ fn run_log_filter() -> anyhow::Result<()> {
     let stdout = io::stdout().lock();
     logging::filter::process_stream(stdin, stdout).context("log-filter stream processing failed")
 }
+
+#[cfg(test)]
+mod tests {
+    use std::io::Cursor;
+
+    use super::*;
+
+    #[test]
+    fn run_log_filter_processes_empty_stream() {
+        // Arrange — empty input; process_stream reads from a Cursor<&[u8]>
+        let input: &[u8] = b"";
+        let stdin = Cursor::new(input);
+        let mut stdout_buf = Vec::new();
+
+        // Act
+        let result = logging::filter::process_stream(stdin, &mut stdout_buf);
+
+        // Assert — empty input produces no output and no error
+        assert!(result.is_ok());
+        assert!(stdout_buf.is_empty());
+    }
+
+    #[test]
+    fn run_subcommand_ok_returns_exit_code() {
+        // Arrange / Act
+        let result = run_subcommand(|| Ok(42));
+
+        // Assert
+        assert_eq!(result, 42);
+    }
+
+    #[test]
+    fn run_subcommand_err_returns_1() {
+        // Arrange / Act
+        let result = run_subcommand(|| Err(anyhow::anyhow!("something went wrong")));
+
+        // Assert
+        assert_eq!(result, 1);
+    }
+
+    #[test]
+    fn run_subcommand_ok_zero_returns_0() {
+        // Arrange / Act
+        let result = run_subcommand(|| Ok(0));
+
+        // Assert
+        assert_eq!(result, 0);
+    }
+}

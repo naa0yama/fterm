@@ -239,4 +239,49 @@ mod tests {
         // Assert
         assert_eq!(result, "/home/user/.ssh/config");
     }
+
+    #[test]
+    #[serial(env)]
+    fn expand_tilde_bare_tilde_returns_home() {
+        // Arrange
+        unsafe {
+            std::env::remove_var("MSYSTEM");
+            std::env::set_var("HOME", "/home/bareuser");
+        };
+
+        // Act
+        let expanded = expand_tilde("~");
+
+        // Assert
+        assert_eq!(expanded, PathBuf::from("/home/bareuser"));
+
+        // Cleanup
+        unsafe { std::env::remove_var("HOME") };
+    }
+
+    #[test]
+    #[serial(env)]
+    fn msys2_home_returns_none_without_msystem() {
+        // Arrange
+        unsafe { std::env::remove_var("MSYSTEM") };
+
+        // Act
+        let result = msys2_home();
+
+        // Assert — no MSYSTEM means no MSYS2 home
+        assert!(result.is_none());
+    }
+
+    #[test]
+    #[serial(env)]
+    fn resolve_win_ssh_command_returns_none_without_msystem() {
+        // Arrange
+        unsafe { std::env::remove_var("MSYSTEM") };
+
+        // Act
+        let result = resolve_win_ssh_command("ssh");
+
+        // Assert — no MSYSTEM means no Windows SSH command
+        assert!(result.is_none());
+    }
 }

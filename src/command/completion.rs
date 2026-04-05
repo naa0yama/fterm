@@ -180,6 +180,12 @@ complete -c fterm -n "__fish_seen_subcommand_from scp" -f -a "(command fterm com
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]
+    #![allow(clippy::undocumented_unsafe_blocks)]
+
+    use std::env;
+
+    use serial_test::serial;
+    use tempfile::TempDir;
 
     use super::*;
 
@@ -285,5 +291,87 @@ mod tests {
         // Assert
         assert!(output.contains("__fish_seen_subcommand_from scp"));
         assert!(output.contains("sed 's/\\$/:/'"));
+    }
+
+    // -----------------------------------------------------------------------
+    // run() and print_hosts() integration tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn run_bash_returns_ok() {
+        // Arrange / Act
+        let result = run(&ShellType::Bash, false);
+
+        // Assert
+        assert_eq!(result.unwrap(), 0);
+    }
+
+    #[test]
+    fn run_fish_returns_ok() {
+        // Arrange / Act
+        let result = run(&ShellType::Fish, false);
+
+        // Assert
+        assert_eq!(result.unwrap(), 0);
+    }
+
+    #[test]
+    #[serial(env)]
+    fn run_list_hosts_no_config_returns_ok() {
+        // Arrange — HOME points to a dir with no .ssh/config
+        let tmp = TempDir::new().unwrap();
+        let original = env::var("HOME").ok();
+        // SAFETY: test runs single-threaded; env var is restored immediately.
+        unsafe { env::set_var("HOME", tmp.path().to_str().unwrap()) };
+        unsafe { env::remove_var("MSYSTEM") };
+
+        // Act
+        let result = run(&ShellType::Bash, true);
+
+        // Cleanup
+        // SAFETY: test runs single-threaded; restoring env state.
+        unsafe {
+            match &original {
+                Some(h) => env::set_var("HOME", h),
+                None => env::remove_var("HOME"),
+            }
+        };
+
+        // Assert — no config file means early Ok(0) return
+        assert_eq!(result.unwrap(), 0);
+    }
+
+    #[test]
+    #[serial(env)]
+    fn run_list_hosts_with_config_returns_ok() {
+        // Arrange — create a temp .ssh/config with some Host entries
+        let tmp = TempDir::new().unwrap();
+        let ssh_dir = tmp.path().join(".ssh");
+        std::fs::create_dir_all(&ssh_dir).unwrap();
+        std::fs::write(
+            ssh_dir.join("config"),
+            "Host myserver\n  HostName 10.0.0.1\nHost staging\n  HostName 10.0.0.2\n",
+        )
+        .unwrap();
+
+        let original = env::var("HOME").ok();
+        // SAFETY: test runs single-threaded; env var is restored immediately.
+        unsafe { env::set_var("HOME", tmp.path().to_str().unwrap()) };
+        unsafe { env::remove_var("MSYSTEM") };
+
+        // Act
+        let result = run(&ShellType::Fish, true);
+
+        // Cleanup
+        // SAFETY: test runs single-threaded; restoring env state.
+        unsafe {
+            match &original {
+                Some(h) => env::set_var("HOME", h),
+                None => env::remove_var("HOME"),
+            }
+        };
+
+        // Assert — hosts printed to stdout, returns 0
+        assert_eq!(result.unwrap(), 0);
     }
 }

@@ -179,4 +179,71 @@ mod tests {
         // No details/keys means no header at all
         assert_eq!(content, "");
     }
+
+    #[test]
+    fn writes_header_with_details_only() {
+        // Arrange
+        let tmp = TempDir::new().unwrap();
+        let log_path = tmp.path().join("details_only.log");
+        let runner = MockCommandRunner::new();
+        let details = vec![
+            String::from("hostname web.example.com"),
+            String::from("port 2222"),
+        ];
+
+        // Act
+        start(&runner, &log_path, "web.example.com", &details, &[]).unwrap();
+
+        // Assert
+        let content = fs::read_to_string(&log_path).unwrap();
+        assert!(content.contains("=== SSH Config ==="));
+        assert!(content.contains("hostname web.example.com"));
+        assert!(!content.contains("=== Matched Agent Keys ==="));
+        assert!(content.ends_with('\n'));
+    }
+
+    #[test]
+    fn writes_header_with_keys_only() {
+        // Arrange
+        let tmp = TempDir::new().unwrap();
+        let log_path = tmp.path().join("keys_only.log");
+        let runner = MockCommandRunner::new();
+        let keys = vec![String::from("SHA256:xyz user@machine (RSA)")];
+
+        // Act
+        start(&runner, &log_path, "host", &[], &keys).unwrap();
+
+        // Assert
+        let content = fs::read_to_string(&log_path).unwrap();
+        assert!(!content.contains("=== SSH Config ==="));
+        assert!(content.contains("=== Matched Agent Keys ==="));
+        assert!(content.contains("SHA256:xyz user@machine (RSA)"));
+        assert!(content.ends_with('\n'));
+    }
+
+    #[test]
+    fn set_option_failure_is_non_fatal() {
+        // Arrange — pipe-pane succeeds but set-option fails
+        let tmp = TempDir::new().unwrap();
+        let log_path = tmp.path().join("nonfatal.log");
+        let log_path_str = log_path.to_str().unwrap();
+        let set_key = format!("tmux set-option -p @fterm_logging {log_path_str}");
+        let runner = MockCommandRunner::new().with_run_response(
+            &set_key,
+            CommandOutput {
+                exit_code: 1,
+                stdout: String::new(),
+                stderr: String::from("no pane option"),
+            },
+        );
+
+        // Act — set-option failure should not bubble up as an error
+        let result = start(&runner, &log_path, "host", &[], &[]);
+
+        // Assert
+        assert!(
+            result.is_ok(),
+            "set-option failure should be non-fatal: {result:?}"
+        );
+    }
 }

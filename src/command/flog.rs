@@ -381,4 +381,80 @@ mod tests {
         let cmd = format!("less '{path}'");
         assert_eq!(cmd, "less '/logs/test.log'");
     }
+
+    #[test]
+    #[serial(env)]
+    fn run_inner_selection_returns_zcat_for_gz() {
+        // Arrange — create a temp dir with a .log.gz file
+        let dir = tempfile::TempDir::new().unwrap();
+        let gz_path = dir.path().join("session.log.gz");
+        fs::write(&gz_path, "compressed").unwrap();
+        let path = dir.path().to_string_lossy().into_owned();
+
+        let result = with_log_dir_prefix(&path, || {
+            // Act — closure returns a selected .gz path
+            run_inner(|_items, _prefix| Ok(Some(String::from("/var/log/session.log.gz"))))
+        });
+
+        // Assert — gz files should produce zcat command, returns 0
+        assert_eq!(result.unwrap(), 0);
+    }
+
+    #[test]
+    #[serial(env)]
+    fn run_inner_selection_from_search_result_log() {
+        // Arrange — create a temp dir with a .log file
+        let dir = tempfile::TempDir::new().unwrap();
+        let log_path = dir.path().join("app.log");
+        fs::write(&log_path, "content").unwrap();
+        let path = dir.path().to_string_lossy().into_owned();
+
+        let result = with_log_dir_prefix(&path, || {
+            // Act — search result format: filepath:line:content
+            run_inner(|_items, _prefix| {
+                Ok(Some(String::from("/logs/app.log:42:some matched line")))
+            })
+        });
+
+        // Assert — path is extracted from search result, returns 0
+        assert_eq!(result.unwrap(), 0);
+    }
+
+    #[test]
+    #[serial(env)]
+    fn run_inner_selection_from_search_result_gz() {
+        // Arrange — create a temp dir with a .log file (any log file to avoid empty check)
+        let dir = tempfile::TempDir::new().unwrap();
+        let log_path = dir.path().join("arch.log");
+        fs::write(&log_path, "content").unwrap();
+        let path = dir.path().to_string_lossy().into_owned();
+
+        let result = with_log_dir_prefix(&path, || {
+            // Act — gz search result format: filepath.log.gz:line:content
+            run_inner(|_items, _prefix| Ok(Some(String::from("/logs/app.log.gz:10:matched line"))))
+        });
+
+        // Assert — gz path extracted, produces zcat command, returns 0
+        assert_eq!(result.unwrap(), 0);
+    }
+
+    #[test]
+    #[serial(env)]
+    fn run_inner_select_fn_error_propagates() {
+        // Arrange — create a temp dir with a .log file
+        let dir = tempfile::TempDir::new().unwrap();
+        let log_path = dir.path().join("error.log");
+        fs::write(&log_path, "content").unwrap();
+        let path = dir.path().to_string_lossy().into_owned();
+
+        let result = with_log_dir_prefix(&path, || {
+            // Act — closure returns an error
+            run_inner(|_items, _prefix| Err(anyhow::anyhow!("fzf crashed")))
+        });
+
+        // Assert — error propagates
+        assert!(result.is_err());
+        let err_msg = format!("{:#}", result.unwrap_err());
+        assert!(err_msg.contains("fzf crashed") || err_msg.contains("fzf log selection failed"));
+    }
 }
