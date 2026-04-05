@@ -406,6 +406,7 @@ mod tests {
         assert!(path_str.contains("scp_deploy-ci@prod_staging.log"));
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn setup_scp_session_succeeds_with_mock_runner() {
         // Arrange
@@ -432,6 +433,7 @@ mod tests {
         assert!(content.contains("SHA256:abc key@host (ED25519)"));
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn setup_scp_session_creates_log_directory() {
         // Arrange
@@ -447,6 +449,7 @@ mod tests {
         assert!(log_path.exists());
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn setup_scp_session_with_empty_details() {
         // Arrange
@@ -464,6 +467,7 @@ mod tests {
         assert_eq!(content, "");
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn teardown_scp_session_does_not_panic() {
         // Arrange
@@ -477,6 +481,7 @@ mod tests {
         teardown_scp_session(&runner, &log_path, &remote_hosts, false, "0s", "");
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn teardown_scp_session_single_host_success() {
         // Arrange
@@ -489,6 +494,7 @@ mod tests {
         teardown_scp_session(&runner, &log_path, &remote_hosts, true, "0s", "");
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn teardown_scp_session_failure_does_not_panic() {
         // Arrange
@@ -501,6 +507,7 @@ mod tests {
         teardown_scp_session(&runner, &log_path, &remote_hosts, false, "0s", "");
     }
 
+    #[cfg(not(miri))]
     #[test]
     #[serial(env)]
     fn pre_connect_checks_agent_unavailable_returns_1() {
@@ -534,6 +541,7 @@ mod tests {
         );
     }
 
+    #[cfg(not(miri))]
     #[test]
     #[serial(env)]
     fn pre_connect_checks_agent_available_no_config_returns_none() {
@@ -591,6 +599,7 @@ mod tests {
         );
     }
 
+    #[cfg(not(miri))]
     #[test]
     #[serial(env)]
     fn pre_connect_checks_validation_errors_returns_1() {
@@ -649,6 +658,7 @@ mod tests {
         );
     }
 
+    #[cfg(not(miri))]
     #[test]
     #[serial(env)]
     fn pre_connect_checks_validation_warnings_returns_none() {
@@ -706,6 +716,7 @@ mod tests {
         );
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn teardown_scp_session_handles_runner_errors() {
         // Arrange — register failing responses for tmux commands used in teardown
@@ -742,6 +753,7 @@ mod tests {
         teardown_scp_session(&runner, &log_path, &remote_hosts, true, "0s", "");
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn setup_scp_session_handles_pane_errors() {
         // Arrange — start::start needs a valid log path; pane/window cmds fail
@@ -783,6 +795,7 @@ mod tests {
         );
     }
 
+    #[cfg(not(miri))]
     #[test]
     #[serial(env)]
     fn pre_connect_checks_not_in_tmux_delegates() {
@@ -841,6 +854,7 @@ mod tests {
         assert_eq!(result, Some(0));
     }
 
+    #[cfg(not(miri))]
     #[test]
     #[serial(env)]
     fn pre_connect_checks_with_valid_config_passes() {

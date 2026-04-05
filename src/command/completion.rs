@@ -315,6 +315,7 @@ mod tests {
         assert_eq!(result.unwrap(), 0);
     }
 
+    #[cfg(not(miri))]
     #[test]
     #[serial(env)]
     fn run_list_hosts_no_config_returns_ok() {
@@ -341,6 +342,7 @@ mod tests {
         assert_eq!(result.unwrap(), 0);
     }
 
+    #[cfg(not(miri))]
     #[test]
     #[serial(env)]
     fn run_list_hosts_with_config_returns_ok() {

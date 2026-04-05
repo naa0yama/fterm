@@ -230,6 +230,7 @@ mod tests {
         result
     }
 
+    #[cfg(not(miri))]
     #[test]
     #[serial(env)]
     fn run_inner_no_log_dir_returns_error_1() {
@@ -248,6 +249,7 @@ mod tests {
         assert!(!missing.exists(), "directory should NOT have been created");
     }
 
+    #[cfg(not(miri))]
     #[test]
     #[serial(env)]
     fn run_inner_empty_log_dir_returns_1() {
@@ -264,6 +266,7 @@ mod tests {
         assert_eq!(result.unwrap(), 1);
     }
 
+    #[cfg(not(miri))]
     #[test]
     #[serial(env)]
     fn run_inner_selection_returns_less_command_for_log() {
@@ -282,6 +285,7 @@ mod tests {
         assert_eq!(result.unwrap(), 0);
     }
 
+    #[cfg(not(miri))]
     #[test]
     #[serial(env)]
     fn run_inner_selection_cancelled_returns_1() {
@@ -300,6 +304,7 @@ mod tests {
         assert_eq!(result.unwrap(), 1);
     }
 
+    #[cfg(not(miri))]
     #[test]
     #[serial(env)]
     fn run_inner_selection_empty_string_returns_1() {
@@ -382,6 +387,7 @@ mod tests {
         assert_eq!(cmd, "less '/logs/test.log'");
     }
 
+    #[cfg(not(miri))]
     #[test]
     #[serial(env)]
     fn run_inner_selection_returns_zcat_for_gz() {
@@ -400,6 +406,7 @@ mod tests {
         assert_eq!(result.unwrap(), 0);
     }
 
+    #[cfg(not(miri))]
     #[test]
     #[serial(env)]
     fn run_inner_selection_from_search_result_log() {
@@ -420,6 +427,7 @@ mod tests {
         assert_eq!(result.unwrap(), 0);
     }
 
+    #[cfg(not(miri))]
     #[test]
     #[serial(env)]
     fn run_inner_selection_from_search_result_gz() {
@@ -438,6 +446,7 @@ mod tests {
         assert_eq!(result.unwrap(), 0);
     }
 
+    #[cfg(not(miri))]
     #[test]
     #[serial(env)]
     fn run_inner_select_fn_error_propagates() {

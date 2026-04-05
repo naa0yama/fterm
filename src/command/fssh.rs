@@ -158,6 +158,7 @@ mod tests {
         unsafe { env::remove_var("FTERM_LOG_DIR_PREFIX") };
     }
 
+    #[cfg(not(miri))]
     #[test]
     #[serial(env)]
     fn compress_old_logs_with_existing_empty_dir() {
@@ -174,6 +175,7 @@ mod tests {
         unsafe { env::remove_var("FTERM_LOG_DIR_PREFIX") };
     }
 
+    #[cfg(not(miri))]
     #[test]
     #[serial(env)]
     fn run_inner_no_config_returns_1() {
@@ -194,6 +196,7 @@ mod tests {
         unsafe { env::remove_var("FTERM_LOG_DIR_PREFIX") };
     }
 
+    #[cfg(not(miri))]
     #[test]
     #[serial(env)]
     fn run_inner_empty_host_list_returns_1() {
@@ -216,6 +219,7 @@ mod tests {
         unsafe { env::remove_var("FTERM_LOG_DIR_PREFIX") };
     }
 
+    #[cfg(not(miri))]
     #[test]
     #[serial(env)]
     fn run_inner_selection_returns_hostname() {
@@ -238,6 +242,7 @@ mod tests {
         unsafe { env::remove_var("FTERM_LOG_DIR_PREFIX") };
     }
 
+    #[cfg(not(miri))]
     #[test]
     #[serial(env)]
     fn run_inner_selection_cancelled_returns_1() {
@@ -258,6 +263,7 @@ mod tests {
         unsafe { env::remove_var("FTERM_LOG_DIR_PREFIX") };
     }
 
+    #[cfg(not(miri))]
     #[test]
     #[serial(env)]
     fn run_inner_selection_empty_string_returns_1() {
@@ -280,6 +286,7 @@ mod tests {
         unsafe { env::remove_var("FTERM_LOG_DIR_PREFIX") };
     }
 
+    #[cfg(not(miri))]
     #[test]
     #[serial(env)]
     fn run_inner_select_fn_error_propagates() {

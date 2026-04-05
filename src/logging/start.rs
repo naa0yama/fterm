@@ -111,6 +111,7 @@ mod tests {
 
     use super::*;
 
+    #[cfg(not(miri))]
     #[test]
     fn creates_log_directory_and_writes_header() {
         // Arrange
@@ -137,6 +138,7 @@ mod tests {
         assert!(content.ends_with('\n'));
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn returns_error_on_tmux_failure() {
         // Arrange
@@ -164,6 +166,7 @@ mod tests {
         assert!(err_msg.contains("tmux pipe-pane exited with code 1"));
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn writes_empty_header_when_no_details() {
         // Arrange
@@ -180,6 +183,7 @@ mod tests {
         assert_eq!(content, "");
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn writes_header_with_details_only() {
         // Arrange
@@ -202,6 +206,7 @@ mod tests {
         assert!(content.ends_with('\n'));
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn writes_header_with_keys_only() {
         // Arrange
@@ -221,6 +226,7 @@ mod tests {
         assert!(content.ends_with('\n'));
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn set_option_failure_is_non_fatal() {
         // Arrange — pipe-pane succeeds but set-option fails

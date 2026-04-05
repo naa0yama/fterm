@@ -576,6 +576,7 @@ mod tests {
         unsafe { env::remove_var("TMUX") };
     }
 
+    #[cfg(not(miri))]
     #[test]
     #[serial(env)]
     fn pre_connect_checks_agent_available_passes() {
@@ -627,6 +628,7 @@ mod tests {
         }
     }
 
+    #[cfg(not(miri))]
     #[test]
     #[serial(env)]
     fn pre_connect_checks_with_identity_option_skips_agent_check() {
@@ -683,6 +685,7 @@ mod tests {
 
     // -- run_validation tests --
 
+    #[cfg(not(miri))]
     #[test]
     #[serial(env)]
     fn run_validation_no_config_returns_none() {
@@ -725,6 +728,7 @@ mod tests {
         }
     }
 
+    #[cfg(not(miri))]
     #[test]
     #[serial(env)]
     fn run_validation_with_valid_config_returns_none() {
@@ -779,6 +783,7 @@ mod tests {
         }
     }
 
+    #[cfg(not(miri))]
     #[test]
     #[serial(env)]
     fn run_validation_with_errors_returns_some_1() {
@@ -826,6 +831,7 @@ mod tests {
         assert_eq!(result, Some(1), "validation errors should return Some(1)");
     }
 
+    #[cfg(not(miri))]
     #[test]
     #[serial(env)]
     fn run_validation_with_warnings_returns_none() {
@@ -876,6 +882,7 @@ mod tests {
         );
     }
 
+    #[cfg(not(miri))]
     #[test]
     #[serial(env)]
     fn pre_connect_checks_validation_errors_returns_1() {
