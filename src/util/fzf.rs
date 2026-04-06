@@ -258,6 +258,7 @@ mod tests {
         assert_eq!(args[bind_indices[1] + 1], "ctrl-f:reload(find .)");
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn run_with_empty_items_returns_none_or_err() {
         // Arrange — no items: fzf exits 1 (no match) in non-TTY, returns Ok(None)

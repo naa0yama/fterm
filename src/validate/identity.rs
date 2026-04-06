@@ -1,5 +1,6 @@
 //! Identity file validation — existence, permissions, and agent presence.
 
+#[cfg(unix)]
 use std::path::Path;
 
 use anyhow::{Context, Result};
