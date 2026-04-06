@@ -125,7 +125,7 @@ run = "cargo deny check"
 
 [tasks.miri]
 description = "Run Miri to detect undefined behavior"
-run = "cargo +nightly miri test"
+run = "MIRIFLAGS=\"-Zmiri-disable-isolation -Zmiri-ignore-leaks\" cargo +nightly miri test"
 
 [tasks.pre-commit]
 description = "Pre-commit checks (fast)"

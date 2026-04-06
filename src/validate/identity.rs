@@ -203,6 +203,7 @@ mod tests {
         );
     }
 
+    #[cfg(not(miri))] // check_permissions -> nix::sys::stat::stat (libc FFI), unsupported by Miri
     #[test]
     fn key_not_in_agent_returns_warn() {
         // Arrange

@@ -96,6 +96,17 @@ wiremock::Mock::given(wiremock::matchers::method("GET"))
 For universal Miri rules and decision flowchart, see
 `~/.claude/skills/rust-implementation/references/testing.md` → "Miri" section.
 
+### MIRIFLAGS (project standard)
+
+This project uses the following flags for both `mise run miri` and CI:
+
+```
+MIRIFLAGS="-Zmiri-disable-isolation -Zmiri-ignore-leaks"
+```
+
+- `-Zmiri-disable-isolation`: allows host filesystem, clock, and env var access.
+- `-Zmiri-ignore-leaks`: suppresses intentional static mutex leaks (e.g. `serial_test`).
+
 ### Per-Test Skip Categories
 
 1. **File system (tempfile)** — Tests using `tempfile::tempdir()` or real file I/O. Miri has limited file system support.
@@ -105,6 +116,7 @@ For universal Miri rules and decision flowchart, see
 5. **TLS / Crypto (reqwest + rustls)** — included in Network I/O count. TLS initialization is extremely slow under Miri (~10 min/call).
 6. **Regex compilation** — included in tests that indirectly trigger `regex::Regex::new()`. DFA construction under interpretation is extremely slow (~2-6 min/test).
 7. **Environment variables** — Tests calling `std::env::set_var` or relying on `HOME`/`current_dir`.
+8. **libc FFI via safe Rust wrappers (nix, rustix)** — Functions like `nix::sys::stat::stat` are safe Rust but delegate to libc. Use `#[cfg(not(miri))]` (not `#[cfg_attr(miri, ignore)]`) to exclude from compilation entirely, since Miri aborts at the FFI boundary even if isolation is disabled.
 
 ## Coverage
 

@@ -384,6 +384,21 @@ mise run coverage        # code coverage report
 
 ### 6.3 Miri 互換性
 
+#### MIRIFLAGS 標準設定
+
+CI (`miri.yaml`) および `mise run miri` の両方で以下のフラグを使用する:
+
+```
+MIRIFLAGS="-Zmiri-disable-isolation -Zmiri-ignore-leaks"
+```
+
+| フラグ                     | 目的                                                  |
+| -------------------------- | ----------------------------------------------------- |
+| `-Zmiri-disable-isolation` | ホストの filesystem・環境変数へのアクセスを許可する   |
+| `-Zmiri-ignore-leaks`      | `serial_test` 等の意図的な静的 mutex リークを無視する |
+
+#### スキップパターン
+
 以下のテストには `#[cfg_attr(miri, ignore)]` を付与する:
 
 1. **ネットワーク I/O**: `wiremock::MockServer` 等のソケット FFI を使用するテスト。
@@ -399,11 +414,15 @@ async fn test_something_via_http() {
     let mock_server = wiremock::MockServer::start().await;
     // ...
 }
+```
 
-#[cfg_attr(miri, ignore)]
+libc FFI を間接的に呼び出すテスト(`nix` クレート経由の `stat` 等)は、
+コンパイル自体を除外する `#[cfg(not(miri))]` を使う:
+
+```rust
+#[cfg(not(miri))] // calls foo -> nix::sys::stat::stat (libc FFI), unsupported by Miri
 #[test]
-fn test_builder_succeeds() {
-    let client = MyClient::builder().build().unwrap();
+fn test_with_libc_ffi() {
     // ...
 }
 ```

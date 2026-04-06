@@ -33,3 +33,5 @@ jobs:
 
       - name: Run Miri
         run: cargo +nightly miri test
+        env:
+          MIRIFLAGS: "-Zmiri-disable-isolation -Zmiri-ignore-leaks"
