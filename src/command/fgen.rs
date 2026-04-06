@@ -558,6 +558,7 @@ mod tests {
         assert!(output.contains("Aborted"));
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn run_inner_show_preview_truncates_long_output() {
         use std::fmt::Write as FmtWrite;

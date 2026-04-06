@@ -330,6 +330,17 @@ mod tests {
     use crate::external::CommandOutput;
     use crate::external::MockCommandRunner;
 
+    /// Create a file at `path` with `0600` permissions.
+    /// Used in pre-connect-checks tests to satisfy `IdentityFile` validation.
+    fn create_id_file_0600(path: &std::path::Path) {
+        std::fs::write(path, "").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600)).unwrap();
+        }
+    }
+
     #[test]
     fn generate_scp_log_path_contains_expected_parts() {
         // Arrange
@@ -550,16 +561,25 @@ mod tests {
         let ssh_dir = tmp.path().join(".ssh");
         // Create cm dir so cm_dir check passes
         std::fs::create_dir_all(ssh_dir.join("conf.d").join("cm")).unwrap();
+        // Create identity file with 0600 permissions (avoids IdentityFile warning)
+        let id_path = ssh_dir.join("id_test");
+        create_id_file_0600(&id_path);
+        let id_path_str = id_path.to_str().unwrap();
         // No config file inside .ssh
 
         // Provide full ssh_resolve output so per-host checks pass
-        let host_resolve = "hostname 192.168.1.1\nuser deploy\nport 22\nidentitiesonly yes\nidentityfile /dev/null\ncontrolpath /tmp/cm/%r@%h:%p\n";
+        let host_resolve = format!(
+            "hostname 192.168.1.1\nuser deploy\nport 22\nidentitiesonly yes\nidentityfile {id_path_str}\ncontrolpath /tmp/cm/%r@%h:%p\n"
+        );
 
         let original_home = env::var("HOME").ok();
         // SAFETY: test runs single-threaded; env vars are restored immediately.
         unsafe {
             env::set_var("TMUX", "/tmp/tmux-test/default,12345,0");
             env::set_var("HOME", tmp.path().to_str().unwrap());
+            // FSSH_SSH_CONF_DIR takes priority over HOME in get_dir(); this prevents
+            // CI HOME mis-resolution from causing cm_dir Permission Denied errors.
+            env::set_var("FSSH_SSH_CONF_DIR", ssh_dir.to_str().unwrap());
         };
         let runner = MockCommandRunner::new()
             .with_agent_list(AgentListResult {
@@ -570,7 +590,7 @@ mod tests {
                 "syntax.check.dummy.host",
                 "hostname syntax.check.dummy.host\n",
             )
-            .with_ssh_resolve("host", host_resolve);
+            .with_ssh_resolve("host", &host_resolve);
         let args = vec![
             String::from("scp"),
             String::from("file.txt"),
@@ -585,6 +605,7 @@ mod tests {
         // SAFETY: test runs single-threaded; restoring env state.
         unsafe {
             env::remove_var("TMUX");
+            env::remove_var("FSSH_SSH_CONF_DIR");
             match &original_home {
                 Some(h) => env::set_var("HOME", h),
                 None => env::remove_var("HOME"),
@@ -668,16 +689,25 @@ mod tests {
         std::fs::create_dir_all(ssh_dir.join("conf.d").join("cm")).unwrap();
         let config_path = ssh_dir.join("config");
         std::fs::write(&config_path, "Host warnhost\n  HostName 10.0.0.1\n").unwrap();
+        // Create identity file with 0600 permissions (avoids IdentityFile warning)
+        let id_path = ssh_dir.join("id_test");
+        create_id_file_0600(&id_path);
+        let id_path_str = id_path.to_str().unwrap();
 
         let original_home = env::var("HOME").ok();
         // SAFETY: test runs single-threaded; env vars are restored immediately.
         unsafe {
             env::set_var("TMUX", "/tmp/tmux-test/default,12345,0");
             env::set_var("HOME", tmp.path().to_str().unwrap());
+            // FSSH_SSH_CONF_DIR takes priority over HOME in get_dir(); this prevents
+            // CI HOME mis-resolution from causing cm_dir Permission Denied errors.
+            env::set_var("FSSH_SSH_CONF_DIR", ssh_dir.to_str().unwrap());
         };
 
         // Mock: all required fields present, but identitiesonly=no triggers warning.
-        let host_resolve = "hostname 192.168.1.1\nuser deploy\nport 22\nidentitiesonly no\nidentityfile /dev/null\ncontrolpath /tmp/cm/%r@%h:%p\n";
+        let host_resolve = format!(
+            "hostname 192.168.1.1\nuser deploy\nport 22\nidentitiesonly no\nidentityfile {id_path_str}\ncontrolpath /tmp/cm/%r@%h:%p\n"
+        );
         let runner = MockCommandRunner::new()
             .with_agent_list(AgentListResult {
                 available: true,
@@ -687,7 +717,7 @@ mod tests {
                 "syntax.check.dummy.host",
                 "hostname syntax.check.dummy.host\n",
             )
-            .with_ssh_resolve("warnhost", host_resolve);
+            .with_ssh_resolve("warnhost", &host_resolve);
         let args = vec![
             String::from("scp"),
             String::from("file.txt"),
@@ -702,6 +732,7 @@ mod tests {
         // SAFETY: test runs single-threaded; restoring env state.
         unsafe {
             env::remove_var("TMUX");
+            env::remove_var("FSSH_SSH_CONF_DIR");
             match &original_home {
                 Some(h) => env::set_var("HOME", h),
                 None => env::remove_var("HOME"),
@@ -865,15 +896,24 @@ mod tests {
         std::fs::create_dir_all(ssh_dir.join("conf.d").join("cm")).unwrap();
         let config_path = ssh_dir.join("config");
         std::fs::write(&config_path, "Host testhost\n  HostName 192.168.1.1\n").unwrap();
+        // Create identity file with 0600 permissions (avoids IdentityFile warning)
+        let id_path = ssh_dir.join("id_test");
+        create_id_file_0600(&id_path);
+        let id_path_str = id_path.to_str().unwrap();
 
         // Provide full ssh_resolve output so per-host checks pass
-        let host_resolve = "hostname 192.168.1.1\nuser deploy\nport 22\nidentitiesonly yes\nidentityfile /dev/null\ncontrolpath /tmp/cm/%r@%h:%p\n";
+        let host_resolve = format!(
+            "hostname 192.168.1.1\nuser deploy\nport 22\nidentitiesonly yes\nidentityfile {id_path_str}\ncontrolpath /tmp/cm/%r@%h:%p\n"
+        );
 
         let original_home = env::var("HOME").ok();
         // SAFETY: test runs single-threaded; env vars are restored immediately.
         unsafe {
             env::set_var("TMUX", "/tmp/tmux-test/default,12345,0");
             env::set_var("HOME", tmp.path().to_str().unwrap());
+            // FSSH_SSH_CONF_DIR takes priority over HOME in get_dir(); this prevents
+            // CI HOME mis-resolution from causing cm_dir Permission Denied errors.
+            env::set_var("FSSH_SSH_CONF_DIR", ssh_dir.to_str().unwrap());
         };
         let runner = MockCommandRunner::new()
             .with_agent_list(AgentListResult {
@@ -884,7 +924,7 @@ mod tests {
                 "syntax.check.dummy.host",
                 "hostname syntax.check.dummy.host\n",
             )
-            .with_ssh_resolve("testhost", host_resolve);
+            .with_ssh_resolve("testhost", &host_resolve);
         let args = vec![
             String::from("scp"),
             String::from("file.txt"),
@@ -899,6 +939,7 @@ mod tests {
         // SAFETY: test runs single-threaded; restoring env state.
         unsafe {
             env::remove_var("TMUX");
+            env::remove_var("FSSH_SSH_CONF_DIR");
             match &original_home {
                 Some(h) => env::set_var("HOME", h),
                 None => env::remove_var("HOME"),
