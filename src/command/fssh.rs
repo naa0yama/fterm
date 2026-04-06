@@ -143,6 +143,7 @@ mod tests {
     use super::*;
     use crate::external::MockCommandRunner;
 
+    #[cfg(not(miri))]
     #[test]
     #[serial(env)]
     fn compress_old_logs_does_not_panic_on_missing_dir() {
