@@ -103,6 +103,7 @@ mod tests {
 
     use super::*;
 
+    #[cfg(not(miri))]
     #[test]
     fn extracts_single_host_block() {
         // Arrange
@@ -125,6 +126,7 @@ mod tests {
         assert!(!result.contains("beta.example.com"));
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn returns_fallback_when_host_not_found() {
         // Arrange
@@ -139,6 +141,7 @@ mod tests {
         assert!(result.contains("No config found for missing"));
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn extracts_from_multiple_files() {
         // Arrange
@@ -156,6 +159,7 @@ mod tests {
         assert!(result.contains("User admin"));
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn stops_at_next_host_directive() {
         // Arrange
@@ -175,6 +179,7 @@ mod tests {
         assert!(!result.contains("next.example.com"));
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn stops_at_match_directive() {
         // Arrange
@@ -194,6 +199,7 @@ mod tests {
         assert!(!result.contains("ProxyJump"));
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn truncates_at_max_lines() {
         // Arrange
@@ -216,6 +222,7 @@ mod tests {
         assert!(line_count <= 24, "got {line_count} lines");
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn extracts_lowercase_host_block() {
         // Arrange
@@ -235,6 +242,7 @@ mod tests {
         assert!(result.contains("HostName target.example.com"));
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn stops_at_lowercase_host_directive() {
         // Arrange
@@ -254,6 +262,7 @@ mod tests {
         assert!(!result.contains("next.example.com"));
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn stops_at_lowercase_match_directive() {
         // Arrange
@@ -273,6 +282,7 @@ mod tests {
         assert!(!result.contains("ProxyJump"));
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn handles_multi_host_line() {
         // Arrange

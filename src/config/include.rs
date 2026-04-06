@@ -125,6 +125,7 @@ mod tests {
 
     use super::*;
 
+    #[cfg(not(miri))]
     #[test]
     fn resolves_single_config_without_includes() {
         // Arrange
@@ -140,6 +141,7 @@ mod tests {
         assert_eq!(result[0], config);
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn resolves_relative_include() {
         // Arrange
@@ -163,6 +165,7 @@ mod tests {
         assert_eq!(result[1], sub_config);
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn resolves_glob_include() {
         // Arrange
@@ -185,6 +188,7 @@ mod tests {
         assert_eq!(result[0], main_config);
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn detects_cycles() {
         // Arrange
@@ -204,6 +208,7 @@ mod tests {
         assert_eq!(result.len(), 2);
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn skips_comments_and_empty_lines() {
         // Arrange
@@ -222,6 +227,7 @@ mod tests {
         assert_eq!(result.len(), 1);
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn case_insensitive_include_keyword() {
         // Arrange
@@ -241,6 +247,7 @@ mod tests {
         assert_eq!(result.len(), 2);
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn handles_absolute_include_path() {
         // Arrange
@@ -260,6 +267,7 @@ mod tests {
         assert_eq!(result.len(), 2);
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn resolves_multiple_patterns_on_one_line() {
         // Arrange
@@ -284,6 +292,7 @@ mod tests {
         assert_eq!(result[2], sub_b);
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn ignores_nonexistent_glob_matches() {
         // Arrange

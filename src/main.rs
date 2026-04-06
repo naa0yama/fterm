@@ -117,6 +117,7 @@ mod tests {
 
     use super::*;
 
+    #[cfg(not(miri))]
     #[test]
     fn run_log_filter_processes_empty_stream() {
         // Arrange — empty input; process_stream reads from a Cursor<&[u8]>

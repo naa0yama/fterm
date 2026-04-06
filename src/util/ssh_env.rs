@@ -69,6 +69,7 @@ mod tests {
 
     use super::*;
 
+    #[cfg(not(miri))]
     #[test]
     #[serial(env)]
     fn load_sets_env_vars_from_file() {
@@ -123,6 +124,7 @@ mod tests {
         unsafe { env::remove_var("SSH_ENV") };
     }
 
+    #[cfg(not(miri))]
     #[test]
     #[serial(env)]
     fn load_skips_comments_and_empty_lines() {

@@ -30,6 +30,7 @@ mod tests {
 
     use super::*;
 
+    #[cfg(not(miri))]
     #[test]
     fn run_with_nonexistent_command_returns_error() {
         // Arrange — use an invalid command name to trigger spawn failure
