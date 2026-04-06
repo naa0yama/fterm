@@ -509,6 +509,7 @@ mod tests {
 
     // -- setup_connection tests --
 
+    #[cfg(not(miri))]
     #[test]
     fn setup_connection_runs_without_error() {
         // Arrange
