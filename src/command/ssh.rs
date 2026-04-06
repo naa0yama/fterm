@@ -405,6 +405,7 @@ mod tests {
         }
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn generate_log_path_contains_expected_parts() {
         // Arrange
@@ -1040,6 +1041,7 @@ mod tests {
         assert_eq!(result, Some(0));
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn generate_log_path_uses_tmux_identifiers() {
         // Arrange

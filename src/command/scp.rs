@@ -341,6 +341,7 @@ mod tests {
         }
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn generate_scp_log_path_contains_expected_parts() {
         // Arrange
@@ -354,6 +355,7 @@ mod tests {
         assert!(path_str.contains("scp_deploy@host1_host2.log"));
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn generate_scp_log_path_single_host() {
         // Arrange
@@ -368,6 +370,7 @@ mod tests {
         assert!(path_str.ends_with(".log"));
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn generate_scp_log_path_contains_date_directory() {
         // Arrange
@@ -386,6 +389,7 @@ mod tests {
         );
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn generate_scp_log_path_contains_timestamp_prefix() {
         // Arrange
@@ -404,6 +408,7 @@ mod tests {
         );
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn generate_scp_log_path_special_characters_in_user() {
         // Arrange
