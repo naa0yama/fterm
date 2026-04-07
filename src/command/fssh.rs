@@ -24,10 +24,22 @@ use crate::util::log_dir;
 /// fzf for interactive selection. Prints `ssh <hostname>` to stdout on
 /// selection so that shell wrappers can place it on the command line.
 ///
+/// Must be invoked from inside a tmux session (`$TMUX` must be set). Running
+/// outside tmux would bypass the active-log protection in `compress_logs` and
+/// risk clobbering logs of concurrent in-tmux sessions.
+///
 /// # Errors
 ///
-/// Returns an error if SSH config parsing or fzf invocation fails.
+/// Returns an error if not running inside tmux, or if SSH config parsing or
+/// fzf invocation fails.
 pub fn run(runner: &dyn CommandRunner) -> Result<i32> {
+    if std::env::var_os("TMUX").is_none() {
+        anyhow::bail!(
+            "fssh requires a running tmux session. \
+             Start tmux first, then invoke fssh inside a pane."
+        );
+    }
+
     let ssh_home = get_dir();
     run_inner(runner, &ssh_home, run_fzf_selection)
 }
@@ -36,13 +48,13 @@ pub fn run(runner: &dyn CommandRunner) -> Result<i32> {
 ///
 /// Accepts an `ssh_home` path and a selection function so callers can
 /// substitute the interactive fzf UI with a test double.
-#[tracing::instrument(skip(_runner, select_fn), err)]
-fn run_inner<F>(_runner: &dyn CommandRunner, ssh_home: &Path, select_fn: F) -> Result<i32>
+#[tracing::instrument(skip(runner, select_fn), err)]
+fn run_inner<F>(runner: &dyn CommandRunner, ssh_home: &Path, select_fn: F) -> Result<i32>
 where
     F: FnOnce(&[String], &[PathBuf]) -> Result<Option<String>>,
 {
     // Compress old log files
-    compress_old_logs();
+    compress_old_logs(runner);
 
     // Gather SSH hosts
     let config_path = ssh_home.join("config");
@@ -114,7 +126,7 @@ fn run_fzf_selection(hosts: &[String], config_files: &[PathBuf]) -> Result<Optio
 }
 
 /// Compress old `.log` files in the log directory.
-fn compress_old_logs() {
+fn compress_old_logs(runner: &dyn CommandRunner) {
     let prefix = log_dir::get_prefix();
 
     let log_dir = std::path::Path::new(&prefix);
@@ -122,7 +134,7 @@ fn compress_old_logs() {
         return;
     }
 
-    match compress_logs(log_dir) {
+    match compress_logs(runner, log_dir) {
         Ok(()) => debug!("log compression completed"),
         Err(e) => debug!("log compression failed: {e}"),
     }
@@ -148,11 +160,12 @@ mod tests {
     #[serial(env)]
     fn compress_old_logs_does_not_panic_on_missing_dir() {
         // Arrange
+        let runner = MockCommandRunner::new();
         // SAFETY: test runs single-threaded; env var is restored immediately.
         unsafe { env::set_var("FTERM_LOG_DIR_PREFIX", "/nonexistent/path/for/test") };
 
         // Act — should not panic even if directory does not exist
-        compress_old_logs();
+        compress_old_logs(&runner);
 
         // Cleanup
         // SAFETY: test runs single-threaded; restoring env state.
@@ -165,11 +178,12 @@ mod tests {
     fn compress_old_logs_with_existing_empty_dir() {
         // Arrange — create a real temp dir and point FTERM_LOG_DIR_PREFIX to it
         let dir = tempfile::TempDir::new().unwrap();
+        let runner = MockCommandRunner::new();
         // SAFETY: test runs single-threaded; env var is restored immediately.
         unsafe { env::set_var("FTERM_LOG_DIR_PREFIX", dir.path().to_str().unwrap()) };
 
         // Act — should not panic on an empty but existing directory
-        compress_old_logs();
+        compress_old_logs(&runner);
 
         // Cleanup
         // SAFETY: test runs single-threaded; restoring env state.
@@ -311,6 +325,25 @@ mod tests {
         let err_msg = format!("{:#}", result.unwrap_err());
         assert!(
             err_msg.contains("fzf crashed") || err_msg.contains("fzf host selection failed"),
+            "unexpected error: {err_msg}"
+        );
+    }
+
+    #[test]
+    #[serial(env)]
+    fn run_bails_when_tmux_not_set() {
+        // Arrange — ensure $TMUX is unset.
+        unsafe { env::remove_var("TMUX") };
+        let runner = MockCommandRunner::new();
+
+        // Act
+        let result = run(&runner);
+
+        // Assert
+        assert!(result.is_err());
+        let err_msg = format!("{:#}", result.unwrap_err());
+        assert!(
+            err_msg.contains("tmux") || err_msg.contains("TMUX"),
             "unexpected error: {err_msg}"
         );
     }

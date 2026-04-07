@@ -1,5 +1,6 @@
 //! Log file utilities: listing, compression, and reading.
 
+use std::collections::HashSet;
 use std::fs::{self, File};
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
@@ -8,8 +9,10 @@ use anyhow::{Context, Result};
 use flate2::Compression;
 use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
-use tracing::debug;
+use tracing::{debug, warn};
 use walkdir::WalkDir;
+
+use crate::external::CommandRunner;
 
 /// List log files (`.log`, `.log.gz`) under a directory, sorted by mtime descending.
 ///
@@ -44,13 +47,45 @@ pub fn list_logs(dir: &Path) -> Vec<PathBuf> {
 /// Each `.log` file is compressed to `.log.gz` and the original is removed.
 /// Files that are already `.log.gz` are skipped.
 ///
+/// Active log files (those currently written to by another fterm session) are
+/// excluded by querying tmux for all pane `@fterm_logging` option values. A
+/// compression failure is downgraded to a warning to handle races gracefully.
+///
 /// # Errors
 ///
-/// Returns an error if reading, compressing, or writing any file fails.
-pub fn compress_logs(dir: &Path) -> Result<()> {
+/// Returns an error if the directory cannot be walked.
+pub fn compress_logs(runner: &dyn CommandRunner, dir: &Path) -> Result<()> {
     if !dir.exists() {
         return Ok(());
     }
+
+    // Build the set of log paths currently in use by other fterm sessions.
+    let active_set: HashSet<PathBuf> = match runner.run(
+        "tmux",
+        &["list-panes", "-a", "-s", "-F", "#{@fterm_logging}"],
+        5,
+    ) {
+        Err(e) => {
+            warn!(
+                ?e,
+                "failed to query tmux for active log paths; skipping active-log protection"
+            );
+            HashSet::new()
+        }
+        Ok(output) if output.exit_code != 0 => {
+            debug!(
+                exit_code = output.exit_code,
+                "tmux list-panes returned non-zero; assuming no active logs"
+            );
+            HashSet::new()
+        }
+        Ok(output) => output
+            .stdout
+            .lines()
+            .filter(|l| !l.is_empty())
+            .map(PathBuf::from)
+            .collect(),
+    };
 
     let log_files: Vec<PathBuf> = WalkDir::new(dir)
         .into_iter()
@@ -61,11 +96,23 @@ pub fn compress_logs(dir: &Path) -> Result<()> {
         .collect();
 
     for path in &log_files {
-        compress_single_file(path)
-            .with_context(|| format!("failed to compress: {}", path.display()))?;
+        if active_set.contains(path) {
+            debug!(
+                path = %path.display(),
+                "skipping active log (in use by another fterm session)"
+            );
+            continue;
+        }
+        if let Err(e) = compress_single_file(path) {
+            warn!(
+                ?e,
+                path = %path.display(),
+                "failed to compress log; another fssh may have raced"
+            );
+        }
     }
 
-    debug!(count = log_files.len(), "compressed log files");
+    debug!(total = log_files.len(), "compress_logs scan complete");
     Ok(())
 }
 
@@ -144,6 +191,7 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
+    use crate::external::{CommandOutput, MockCommandRunner};
 
     #[cfg(not(miri))]
     #[test]
@@ -200,9 +248,10 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let log_path = dir.path().join("test.log");
         fs::write(&log_path, "hello world\n").unwrap();
+        let runner = MockCommandRunner::new();
 
         // Act
-        compress_logs(dir.path()).unwrap();
+        compress_logs(&runner, dir.path()).unwrap();
 
         // Assert
         assert!(!log_path.exists(), "original .log should be removed");
@@ -217,8 +266,11 @@ mod tests {
     #[cfg(not(miri))]
     #[test]
     fn compress_logs_skips_nonexistent_dir() {
+        // Arrange
+        let runner = MockCommandRunner::new();
+
         // Act & Assert
-        assert!(compress_logs(Path::new("/nonexistent")).is_ok());
+        assert!(compress_logs(&runner, Path::new("/nonexistent")).is_ok());
     }
 
     #[cfg(not(miri))]
@@ -228,13 +280,43 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let gz_path = dir.path().join("already.log.gz");
         fs::write(&gz_path, "fake gz data").unwrap();
+        let runner = MockCommandRunner::new();
 
         // Act
-        compress_logs(dir.path()).unwrap();
+        compress_logs(&runner, dir.path()).unwrap();
 
         // Assert — file should be unchanged (not double-compressed)
         let content = fs::read_to_string(&gz_path).unwrap();
         assert_eq!(content, "fake gz data");
+    }
+
+    #[cfg(not(miri))]
+    #[test]
+    fn compress_logs_skips_active_log_reported_by_tmux() {
+        // Arrange
+        let dir = TempDir::new().unwrap();
+        let active_log = dir.path().join("active.log");
+        let old_log = dir.path().join("old.log");
+        fs::write(&active_log, "in use\n").unwrap();
+        fs::write(&old_log, "old\n").unwrap();
+
+        // Mock tmux to report active_log as in use.
+        let runner = MockCommandRunner::new().with_run_response(
+            "tmux list-panes -a -s -F #{@fterm_logging}",
+            CommandOutput {
+                exit_code: 0,
+                stdout: format!("{}\n", active_log.display()),
+                stderr: String::new(),
+            },
+        );
+
+        // Act
+        compress_logs(&runner, dir.path()).unwrap();
+
+        // Assert — active log must not be compressed, old log must be compressed.
+        assert!(active_log.exists(), "active log should not be touched");
+        assert!(!old_log.exists(), "old log should be compressed");
+        assert!(dir.path().join("old.log.gz").exists());
     }
 
     #[cfg(not(miri))]

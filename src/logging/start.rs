@@ -5,9 +5,10 @@ use std::io::Write;
 use std::path::Path;
 
 use anyhow::{Context, Result};
-use tracing::debug;
+use tracing::{debug, warn};
 
 use crate::external::CommandRunner;
+use crate::logging::stop::{FooterKind, finalize_logging};
 
 /// Start session logging by writing a header and enabling tmux pipe-pane.
 ///
@@ -25,6 +26,24 @@ pub fn start(
     ssh_details: &[String],
     agent_keys: &[String],
 ) -> Result<()> {
+    // Detect and clean up a stale logging session left by a previous abnormal
+    // exit (pane kill, fterm crash, SIGKILL). If @fterm_logging is still set,
+    // the previous session never ran teardown; finalize it now.
+    let prev_output = runner
+        .run("tmux", &["show-option", "-pqv", "@fterm_logging"], 5)
+        .context("failed to check @fterm_logging pane option")?;
+    let prev_log = prev_output.stdout.trim();
+    if !prev_log.is_empty() {
+        warn!(
+            previous = %prev_log,
+            "stale logging session detected; running cleanup teardown"
+        );
+        let prev_path = std::path::PathBuf::from(prev_log);
+        if let Err(e) = finalize_logging(runner, &prev_path, FooterKind::Cleanup) {
+            warn!(?e, "cleanup teardown of stale session failed (continuing)");
+        }
+    }
+
     // Ensure the log directory exists.
     if let Some(parent) = log_path.parent() {
         fs::create_dir_all(parent)
