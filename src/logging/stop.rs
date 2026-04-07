@@ -10,18 +10,99 @@ use tracing::{debug, warn};
 
 use crate::external::CommandRunner;
 
-/// Stop session logging, append a disconnect marker, and compress the log.
+/// Kind of footer to append when finalizing a log session.
+#[derive(Debug)]
+pub enum FooterKind {
+    /// Normal teardown — the SSH session disconnected cleanly.
+    Disconnect,
+    /// Cleanup of an abandoned session detected at startup.
+    Cleanup,
+}
+
+/// Finalize a logging session: append footer, stop pipe-pane, compress, unset.
 ///
-/// Disables the tmux pipe-pane, appends a timestamped disconnect marker to
-/// the log file, then compresses it with gzip.
+/// Execution order ensures `@fterm_logging` remains set (and the `.log` file
+/// exists) until after gzip completes, so other processes can safely exclude
+/// active logs by querying the option.
+///
+/// 1. Append footer to the log file (skipped gracefully if the file is absent).
+/// 2. Stop `tmux pipe-pane`.
+/// 3. Compress the log with gzip (failure is a non-fatal warning).
+/// 4. Unset `@fterm_logging` (non-fatal).
 ///
 /// # Errors
-/// Returns an error if the tmux command, file I/O, or gzip compression fails.
+/// Returns an error if `tmux pipe-pane` (stop) fails.
+#[tracing::instrument(skip(runner), err)]
+pub fn finalize_logging(
+    runner: &dyn CommandRunner,
+    log_path: &Path,
+    kind: FooterKind,
+) -> Result<()> {
+    // 1. Append footer (skip gracefully if log file does not exist).
+    if log_path.exists() {
+        append_footer(log_path, &kind)?;
+    } else {
+        warn!(path = %log_path.display(), "log file does not exist; skipping footer");
+    }
+
+    // 2. Stop tmux pipe-pane.
+    stop_pipe_pane(runner)?;
+
+    // 3. Compress (non-fatal on race or failure; warn only).
+    if let Err(e) = gzip_log(runner, log_path) {
+        warn!(?e, path = %log_path.display(), "gzip failed; another fterm may have raced");
+    }
+
+    // 4. Unset @fterm_logging last so the active-log guard (Finding 8) sees
+    //    the option as set until the .log file is fully compressed.
+    unset_fterm_logging(runner);
+
+    Ok(())
+}
+
+/// Stop session logging, append a disconnect marker, and compress the log.
+///
+/// This is a thin wrapper around [`finalize_logging`] using [`FooterKind::Disconnect`].
+///
+/// # Errors
+/// Returns an error if `tmux pipe-pane` (stop) fails. Gzip failure is
+/// non-fatal and is downgraded to a warning.
 #[tracing::instrument(skip(runner), err)]
 pub fn stop(runner: &dyn CommandRunner, log_path: &Path) -> Result<()> {
-    debug!(path = %log_path.display(), "stopping tmux pipe-pane");
+    finalize_logging(runner, log_path, FooterKind::Disconnect)
+}
 
-    // Disable tmux pipe-pane (no arguments stops the pipe).
+/// Append a timestamped footer line to the log file.
+fn append_footer(log_path: &Path, kind: &FooterKind) -> Result<()> {
+    let timestamp = Local::now().format("%Y-%m-%dT%H:%M:%S%z");
+    let marker = match kind {
+        FooterKind::Disconnect => format!(
+            "----------------------------------------------------------------\n\
+             [{timestamp}] === Session Disconnected ===\n"
+        ),
+        FooterKind::Cleanup => format!(
+            "----------------------------------------------------------------\n\
+             [{timestamp}] Closed by cleanup (previous session abandoned)\n"
+        ),
+    };
+
+    debug!(path = %log_path.display(), "appending footer to log");
+
+    let mut file = OpenOptions::new()
+        .append(true)
+        .open(log_path)
+        .with_context(|| format!("failed to open log file for footer: {}", log_path.display()))?;
+
+    file.write_all(marker.as_bytes())
+        .with_context(|| format!("failed to write footer to: {}", log_path.display()))?;
+
+    Ok(())
+}
+
+/// Stop `tmux pipe-pane` (no arguments stops the active pipe).
+fn stop_pipe_pane(runner: &dyn CommandRunner) -> Result<()> {
+    debug!("stopping tmux pipe-pane");
+
     let output = runner
         .run("tmux", &["pipe-pane"], 5)
         .context("failed to run tmux pipe-pane (stop)")?;
@@ -34,47 +115,14 @@ pub fn stop(runner: &dyn CommandRunner, log_path: &Path) -> Result<()> {
         );
     }
 
-    // Unset pane logging state option.
-    let unset_output = runner
-        .run("tmux", &["set-option", "-p", "-u", "@fterm_logging"], 5)
-        .context("failed to unset @fterm_logging pane option")?;
-    if unset_output.exit_code != 0 {
-        debug!(
-            exit_code = unset_output.exit_code,
-            "could not unset @fterm_logging (non-fatal)"
-        );
-    }
+    Ok(())
+}
 
-    // Pre-check: skip gracefully if log file does not exist.
-    if !log_path.exists() {
-        warn!(path = %log_path.display(), "log file does not exist; skipping disconnect marker");
-        return Ok(());
-    }
-
-    // Append disconnect marker.
-    let timestamp = Local::now().format("%Y-%m-%dT%H:%M:%S%z");
-    let marker = format!("[{timestamp}] === Session Disconnected ===\n");
-
-    debug!(path = %log_path.display(), "appending disconnect marker");
-
-    let mut file = OpenOptions::new()
-        .append(true)
-        .open(log_path)
-        .with_context(|| {
-            format!(
-                "failed to open log file for disconnect marker: {}",
-                log_path.display()
-            )
-        })?;
-
-    file.write_all(marker.as_bytes()).with_context(|| {
-        format!(
-            "failed to write disconnect marker to: {}",
-            log_path.display()
-        )
-    })?;
-
-    // Compress the log file.
+/// Compress a log file with gzip.
+///
+/// # Errors
+/// Returns an error if gzip exits with a non-zero status.
+pub fn gzip_log(runner: &dyn CommandRunner, log_path: &Path) -> Result<()> {
     let log_path_str = log_path
         .to_str()
         .context("log path contains invalid UTF-8")?;
@@ -94,6 +142,20 @@ pub fn stop(runner: &dyn CommandRunner, log_path: &Path) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Unset `@fterm_logging` pane option (non-fatal).
+fn unset_fterm_logging(runner: &dyn CommandRunner) {
+    match runner.run("tmux", &["set-option", "-p", "-u", "@fterm_logging"], 5) {
+        Err(e) => debug!(?e, "could not unset @fterm_logging (non-fatal)"),
+        Ok(output) if output.exit_code != 0 => {
+            debug!(
+                exit_code = output.exit_code,
+                "could not unset @fterm_logging (non-fatal)"
+            );
+        }
+        Ok(_) => {}
+    }
 }
 
 #[cfg(test)]
@@ -121,7 +183,7 @@ mod tests {
         // Act
         stop(&runner, &log_path).unwrap();
 
-        // Assert - verify disconnect marker was written
+        // Assert - verify disconnect marker was written before pipe-pane stop
         // Note: gzip is mocked so file still exists as-is
         let content = fs::read_to_string(&log_path).unwrap();
         assert!(content.contains("existing content"));
@@ -170,13 +232,11 @@ mod tests {
             },
         );
 
-        // Act
+        // Act — gzip failure is now a warning, not an error
         let result = stop(&runner, &log_path);
 
-        // Assert
-        assert!(result.is_err());
-        let err_msg = format!("{:#}", result.unwrap_err());
-        assert!(err_msg.contains("gzip exited with code 1"));
+        // Assert — finalize_logging tolerates gzip failure
+        assert!(result.is_ok());
     }
 
     #[cfg(not(miri))]
@@ -208,8 +268,10 @@ mod tests {
 
         // Assert
         let content = fs::read_to_string(&log_path).unwrap();
+        // Verify separator line
+        assert!(content.contains("---"));
         // Verify timestamp format: [YYYY-MM-DDThh:mm:ss+ZZZZ]
-        assert!(content.starts_with('['));
+        assert!(content.contains('['));
         assert!(content.contains('T'));
         assert!(content.contains("] === Session Disconnected ==="));
     }
@@ -238,5 +300,23 @@ mod tests {
             result.is_ok(),
             "unset @fterm_logging failure should be non-fatal: {result:?}"
         );
+    }
+
+    #[cfg(not(miri))]
+    #[test]
+    fn finalize_logging_cleanup_appends_cleanup_footer() {
+        // Arrange
+        let tmp = TempDir::new().unwrap();
+        let log_path = tmp.path().join("stale.log");
+        fs::write(&log_path, "stale content\n").unwrap();
+        let runner = MockCommandRunner::new();
+
+        // Act
+        finalize_logging(&runner, &log_path, FooterKind::Cleanup).unwrap();
+
+        // Assert — cleanup footer must be written
+        let content = fs::read_to_string(&log_path).unwrap();
+        assert!(content.contains("Closed by cleanup (previous session abandoned)"));
+        assert!(!content.contains("Session Disconnected"));
     }
 }
