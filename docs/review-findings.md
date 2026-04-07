@@ -119,8 +119,8 @@
 
 ### P3-06: SCP log path missing tmux identifiers
 
-- **Files**: `src/command/scp.rs`
-- **Fix**: Added `get_tmux_identifiers()` to SCP, matching SSH log path format.
+- **Files**: `src/command/scp.rs`, `src/tmux/session.rs`
+- **Fix**: Added `get_pane_pid()` to SCP log path (replaced `get_tmux_identifiers()`). Format is now `{timestamp}_scp_{user@host...}_{pane_pid}.log`.
 - **Status**: DONE
 
 ### P3-07: SCP teardown missing window::enable_rename
@@ -130,8 +130,9 @@
 
 ### P3-08: SCP missing user@host format construction
 
-- **Files**: `src/command/scp.rs`
-- **Status**: WONTFIX (SCP correctly joins hosts with underscore; user@host is already in log path)
+- **Files**: `src/command/scp.rs`, `src/util/scp_args.rs`
+- **Fix**: `extract_user_host_pairs()` extracts optional user from `user@host:path` args. Log path, banner, and `@fterm_ssh_host` all use `user@host` format per resolved or explicit user.
+- **Status**: DONE
 
 ### P3-09: fgen no retry on empty input
 
