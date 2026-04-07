@@ -55,25 +55,7 @@ pub fn run() -> Result<i32> {
 fn run_inner(ssh_home: &Path, reader: &mut dyn BufRead, writer: &mut dyn Write) -> Result<i32> {
     let template_path = ssh_home.join("template.conf");
 
-    // Create default template if it does not exist
-    if !template_path.exists() {
-        writeln!(
-            writer,
-            "Creating default template: {}",
-            template_path.display()
-        )
-        .context("failed to write output")?;
-        fs::write(&template_path, DEFAULT_TEMPLATE).with_context(|| {
-            format!(
-                "failed to create default template: {}",
-                template_path.display()
-            )
-        })?;
-        writeln!(
-            writer,
-            "Template created. Please edit it before running fgen again."
-        )
-        .context("failed to write output")?;
+    if ensure_template(&template_path, writer)? {
         return Ok(0);
     }
 
@@ -113,31 +95,9 @@ fn run_inner(ssh_home: &Path, reader: &mut dyn BufRead, writer: &mut dyn Write) 
 
     let output_path = output_dir.join(format!("{env_name}.conf"));
 
-    // Confirm before overwriting an existing file
-    if output_path.exists() {
-        write!(
-            writer,
-            "File already exists: {}. Overwrite? [y/N]: ",
-            output_path.display()
-        )
-        .context("failed to write output")?;
-        writer.flush().context("failed to flush output")?;
-        let mut answer = String::new();
-        reader
-            .read_line(&mut answer)
-            .context("failed to read user input")?;
-        if !answer.trim().eq_ignore_ascii_case("y") {
-            writeln!(writer, "Aborted.").context("failed to write output")?;
-            return Ok(1);
-        }
+    if !write_config(&output_path, &output, reader, writer)? {
+        return Ok(1);
     }
-
-    fs::write(&output_path, &output).with_context(|| {
-        format!(
-            "failed to write generated config: {}",
-            output_path.display()
-        )
-    })?;
 
     writeln!(writer, "Generated: {}", output_path.display()).context("failed to write output")?;
     writeln!(writer).context("failed to write output")?;
@@ -201,6 +161,112 @@ fn prompt_input(label: &str, reader: &mut dyn BufRead, writer: &mut dyn Write) -
         .context("failed to read user input")?;
 
     Ok(input.trim().to_owned())
+}
+
+/// Atomically create the default template if it does not already exist.
+///
+/// Returns `true` if a new template was created (caller should exit early),
+/// or `false` if the template already existed.
+///
+/// # Errors
+///
+/// Returns an error if file creation or writing fails.
+fn ensure_template(template_path: &Path, writer: &mut dyn Write) -> Result<bool> {
+    match fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(template_path)
+    {
+        Ok(mut file) => {
+            writeln!(
+                writer,
+                "Creating default template: {}",
+                template_path.display()
+            )
+            .context("failed to write output")?;
+            file.write_all(DEFAULT_TEMPLATE.as_bytes())
+                .with_context(|| {
+                    format!(
+                        "failed to create default template: {}",
+                        template_path.display()
+                    )
+                })?;
+            writeln!(
+                writer,
+                "Template created. Please edit it before running fgen again."
+            )
+            .context("failed to write output")?;
+            Ok(true)
+        }
+        Err(e) if e.kind() == io::ErrorKind::AlreadyExists => Ok(false),
+        Err(e) => Err(e).with_context(|| {
+            format!(
+                "failed to create default template: {}",
+                template_path.display()
+            )
+        }),
+    }
+}
+
+/// Write the generated config, prompting for confirmation if the file exists.
+///
+/// Returns `true` if the file was written, or `false` if the user declined to
+/// overwrite.
+///
+/// # Errors
+///
+/// Returns an error if file I/O or user input fails.
+fn write_config(
+    output_path: &Path,
+    output: &str,
+    reader: &mut dyn BufRead,
+    writer: &mut dyn Write,
+) -> Result<bool> {
+    match fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(output_path)
+    {
+        Ok(mut file) => {
+            file.write_all(output.as_bytes()).with_context(|| {
+                format!(
+                    "failed to write generated config: {}",
+                    output_path.display()
+                )
+            })?;
+            Ok(true)
+        }
+        Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {
+            write!(
+                writer,
+                "File already exists: {}. Overwrite? [y/N]: ",
+                output_path.display()
+            )
+            .context("failed to write output")?;
+            writer.flush().context("failed to flush output")?;
+            let mut answer = String::new();
+            reader
+                .read_line(&mut answer)
+                .context("failed to read user input")?;
+            if !answer.trim().eq_ignore_ascii_case("y") {
+                writeln!(writer, "Aborted.").context("failed to write output")?;
+                return Ok(false);
+            }
+            fs::write(output_path, output).with_context(|| {
+                format!(
+                    "failed to write generated config: {}",
+                    output_path.display()
+                )
+            })?;
+            Ok(true)
+        }
+        Err(e) => Err(e).with_context(|| {
+            format!(
+                "failed to write generated config: {}",
+                output_path.display()
+            )
+        }),
+    }
 }
 
 /// Show the first 20 lines of the generated config.
