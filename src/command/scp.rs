@@ -18,12 +18,12 @@ use crate::external::CommandRunner;
 use crate::logging::start;
 use crate::logging::stop;
 use crate::tmux::pane;
-use crate::tmux::session::{TmuxAction, ensure_tmux, get_tmux_identifiers};
+use crate::tmux::session::{TmuxAction, ensure_tmux, get_pane_pid};
 use crate::tmux::window;
 use crate::util::dry_run;
 use crate::util::duration;
 use crate::util::log_dir;
-use crate::util::scp_args::extract_hosts;
+use crate::util::scp_args::extract_user_host_pairs;
 use crate::util::splash;
 use crate::util::ssh_env;
 use crate::validate::orchestrator::{format_summary, run_all_checks};
@@ -42,8 +42,9 @@ use crate::validate::orchestrator::{format_summary, run_all_checks};
 pub fn run(runner: &dyn CommandRunner, args: &[String]) -> Result<i32> {
     let start_time = Instant::now();
 
-    // Extract remote hosts
-    let remote_hosts = extract_hosts(args);
+    // Extract remote hosts (with optional explicit user from user@host:path form)
+    let user_host_input = extract_user_host_pairs(args);
+    let remote_hosts: Vec<String> = user_host_input.iter().map(|(_, h)| h.clone()).collect();
     if remote_hosts.is_empty() {
         debug!("no remote hosts found in args; exec scp directly");
         return Ok(exec_scp(args));
@@ -63,37 +64,32 @@ pub fn run(runner: &dyn CommandRunner, args: &[String]) -> Result<i32> {
         return Ok(code);
     }
 
-    // Resolve first host once via ssh -G
+    // Resolve all hosts individually via ssh -G
     let config_args: Vec<String> = build_config_args()?;
-    let first_host = remote_hosts.first().context("no remote hosts")?;
-    let ssh_g_output = runner
-        .ssh_resolve(first_host, &config_args)
-        .with_context(|| format!("failed to resolve host: {first_host}"))?;
+    let (user_host_pairs, first_ssh_g_output) =
+        resolve_all_hosts(runner, &user_host_input, &config_args)?;
 
-    let user = crate::config::connection::parse_connection_info(&ssh_g_output).map_or_else(
-        || {
-            warn!(host = %first_host, "could not parse connection info; defaulting to unknown user");
-            String::from("unknown")
-        },
-        |info| info.user,
-    );
+    // Build user@host display strings (used for log path, banners, and tmux state)
+    let user_at_hosts: Vec<String> = user_host_pairs
+        .iter()
+        .map(|(u, h)| format!("{u}@{h}"))
+        .collect();
 
-    // Generate log path with hosts joined by underscore
-    let hosts_joined = remote_hosts.join("_");
-    let log_path = generate_scp_log_path(runner, &user, &hosts_joined);
+    // Generate log path: scp_userA@hostA_userB@hostB.log
+    let log_path = generate_scp_log_path(runner, &user_host_pairs);
     debug!(log_path = %log_path.display(), "generated SCP log path");
 
-    // Get SSH details and agent keys from pre-resolved output
-    let ssh_details = details::parse(&ssh_g_output);
+    // Get SSH details and agent keys from first host's resolve output
+    let ssh_details = details::parse(&first_ssh_g_output);
     let agent_keys =
-        crate::config::agent::get_matched_agent_keys_from_output(runner, &ssh_g_output)
+        crate::config::agent::get_matched_agent_keys_from_output(runner, &first_ssh_g_output)
             .unwrap_or_default();
 
     // Save original pane title for restore on teardown
     let original_pane_title = pane::get_title(runner).unwrap_or_default();
 
     // Setup (logging, banner, tmux)
-    setup_scp_session(runner, &log_path, &hosts_joined, &ssh_details, &agent_keys)?;
+    setup_scp_session(runner, &log_path, &user_at_hosts, &ssh_details, &agent_keys)?;
 
     // Execute SCP (directly, not via runner)
     let scp_exit_code = exec_scp_status(args, &config_args);
@@ -107,7 +103,7 @@ pub fn run(runner: &dyn CommandRunner, args: &[String]) -> Result<i32> {
     teardown_scp_session(
         runner,
         &log_path,
-        &remote_hosts,
+        &user_at_hosts,
         success,
         &duration_str,
         &original_pane_title,
@@ -187,20 +183,26 @@ fn pre_connect_checks(
 }
 
 /// Setup SCP session: logging, banner, and tmux state.
+///
+/// `user_at_hosts` is a slice of `"user@host"` strings, one per remote host.
 fn setup_scp_session(
     runner: &dyn CommandRunner,
     log_path: &std::path::Path,
-    hosts_joined: &str,
+    user_at_hosts: &[String],
     ssh_details: &[String],
     agent_keys: &[String],
 ) -> Result<()> {
+    // Derive display variants from user@host list
+    let hosts_joined = user_at_hosts.join("_"); // for log header and pane title
+    let hosts_display = user_at_hosts.join(" "); // for banner and @fterm_ssh_host
+
     // Start logging
-    start::start(runner, log_path, hosts_joined, ssh_details, agent_keys)
+    start::start(runner, log_path, &hosts_joined, ssh_details, agent_keys)
         .context("failed to start logging")?;
 
     // Print connect banner
     let banner = splash::scp_connect_banner(
-        hosts_joined,
+        &hosts_display,
         &splash::BannerParams {
             log_path: &log_path.to_string_lossy(),
             ssh_details,
@@ -223,8 +225,8 @@ fn setup_scp_session(
         warn!("failed to increment ssh count: {e:#}");
     }
 
-    // Set @fterm_ssh_host (format: "scp:host1 host2")
-    let scp_host_value = format!("scp:{}", hosts_joined.replace('_', " "));
+    // Set @fterm_ssh_host (format: "scp:user1@host1 user2@host2")
+    let scp_host_value = format!("scp:{hosts_display}");
     if let Err(e) = pane::set_ssh_host(runner, &scp_host_value) {
         warn!("failed to set @fterm_ssh_host: {e:#}");
     }
@@ -302,18 +304,66 @@ fn exec_scp(args: &[String]) -> i32 {
     crate::external::exec_with_config("scp", args, &config_args)
 }
 
+/// Resolve SSH connection info for each remote host via `ssh -G`.
+///
+/// Returns a list of `(user, host)` pairs in the same order as `user_host_input`,
+/// and the full `ssh -G` output for the first host (used for SSH details / agent keys).
+///
+/// If an explicit user was provided in the SCP argument (`user@host:path`),
+/// that user is used as-is instead of querying `ssh -G`.
+fn resolve_all_hosts(
+    runner: &dyn CommandRunner,
+    user_host_input: &[(Option<String>, String)],
+    config_args: &[String],
+) -> Result<(Vec<(String, String)>, String)> {
+    let mut pairs: Vec<(String, String)> = Vec::with_capacity(user_host_input.len());
+    let mut first_output = String::new();
+
+    for (i, (explicit_user, host)) in user_host_input.iter().enumerate() {
+        let output = runner
+            .ssh_resolve(host, config_args)
+            .with_context(|| format!("failed to resolve host: {host}"))?;
+
+        let user = explicit_user.as_ref().map_or_else(
+            || {
+                crate::config::connection::parse_connection_info(&output).map_or_else(
+                    || {
+                        warn!(host = %host, "could not parse connection info; defaulting to unknown user");
+                        String::from("unknown")
+                    },
+                    |info| info.user,
+                )
+            },
+            std::clone::Clone::clone,
+        );
+
+        if i == 0 {
+            first_output = output;
+        }
+        pairs.push((user, host.clone()));
+    }
+
+    Ok((pairs, first_output))
+}
+
 /// Generate the log file path for SCP sessions.
 ///
-/// Format: `{prefix}/{YYYY/MM/DD}/{YYYYMMDDTHHMMSS}_{tmux_ids}_scp_{user}@{hosts}.log`
-fn generate_scp_log_path(runner: &dyn CommandRunner, user: &str, hosts: &str) -> PathBuf {
+/// Format: `{prefix}/{YYYY/MM/DD}/{YYYYMMDDTHHMMSS}_scp_{userA}@{hostA}_{userB}@{hostB}_{pane_pid}.log`
+fn generate_scp_log_path(runner: &dyn CommandRunner, pairs: &[(String, String)]) -> PathBuf {
     let prefix = log_dir::get_prefix();
     let now = Local::now();
     let date_dir = now.format("%Y/%m/%d").to_string();
     let timestamp = now.format("%Y%m%dT%H%M%S").to_string();
 
-    let tmux_ids = get_tmux_identifiers(runner);
+    let pane_pid = get_pane_pid(runner);
 
-    let filename = format!("{timestamp}_{tmux_ids}_scp_{user}@{hosts}.log");
+    let hosts_part = pairs
+        .iter()
+        .map(|(user, host)| format!("{user}@{host}"))
+        .collect::<Vec<_>>()
+        .join("_");
+
+    let filename = format!("{timestamp}_scp_{hosts_part}_{pane_pid}.log");
 
     PathBuf::from(&prefix).join(&date_dir).join(&filename)
 }
@@ -343,31 +393,139 @@ mod tests {
 
     #[cfg(not(miri))]
     #[test]
-    fn generate_scp_log_path_contains_expected_parts() {
-        // Arrange
-        let runner = MockCommandRunner::new();
+    fn resolve_all_hosts_uses_ssh_g_user() {
+        // Arrange — two hosts, each with a distinct resolved user
+        let runner = MockCommandRunner::new()
+            .with_ssh_resolve("host1", "hostname 10.0.0.1\nuser alice\nport 22\n")
+            .with_ssh_resolve("host2", "hostname 10.0.0.2\nuser bob\nport 22\n");
+        let input = vec![(None, String::from("host1")), (None, String::from("host2"))];
+        let config_args: Vec<String> = vec![];
 
         // Act
-        let path = generate_scp_log_path(&runner, "deploy", "host1_host2");
-        let path_str = path.to_string_lossy();
+        let (pairs, first_output) = resolve_all_hosts(&runner, &input, &config_args).unwrap();
 
         // Assert
-        assert!(path_str.contains("scp_deploy@host1_host2.log"));
+        assert_eq!(
+            pairs,
+            vec![
+                (String::from("alice"), String::from("host1")),
+                (String::from("bob"), String::from("host2")),
+            ]
+        );
+        assert!(
+            first_output.contains("alice"),
+            "first_output should be host1 output"
+        );
+    }
+
+    #[cfg(not(miri))]
+    #[test]
+    fn resolve_all_hosts_prefers_explicit_user() {
+        // Arrange — explicit user in arg overrides ssh -G resolved user
+        let runner = MockCommandRunner::new()
+            .with_ssh_resolve("host1", "hostname 10.0.0.1\nuser config-user\nport 22\n");
+        let input = vec![(Some(String::from("explicit")), String::from("host1"))];
+        let config_args: Vec<String> = vec![];
+
+        // Act
+        let (pairs, _) = resolve_all_hosts(&runner, &input, &config_args).unwrap();
+
+        // Assert — explicit user takes precedence
+        assert_eq!(
+            pairs,
+            vec![(String::from("explicit"), String::from("host1"))]
+        );
+    }
+
+    #[cfg(not(miri))]
+    #[test]
+    fn resolve_all_hosts_defaults_unknown_on_parse_failure() {
+        // Arrange — ssh -G returns empty output (parse fails)
+        let runner = MockCommandRunner::new().with_ssh_resolve("host1", "");
+        let input = vec![(None, String::from("host1"))];
+        let config_args: Vec<String> = vec![];
+
+        // Act
+        let (pairs, _) = resolve_all_hosts(&runner, &input, &config_args).unwrap();
+
+        // Assert — falls back to "unknown"
+        assert_eq!(
+            pairs,
+            vec![(String::from("unknown"), String::from("host1"))]
+        );
+    }
+
+    #[cfg(not(miri))]
+    #[test]
+    fn generate_scp_log_path_contains_expected_parts() {
+        // Arrange
+        let runner = MockCommandRunner::new().with_run_response(
+            "tmux display-message -p #{pane_pid}",
+            CommandOutput {
+                exit_code: 0,
+                stdout: String::from("11111\n"),
+                stderr: String::new(),
+            },
+        );
+        let pairs = vec![
+            (String::from("deploy"), String::from("host1")),
+            (String::from("deploy"), String::from("host2")),
+        ];
+
+        // Act
+        let path = generate_scp_log_path(&runner, &pairs);
+        let path_str = path.to_string_lossy();
+
+        // Assert — format: scp_{user@host}_{pane_pid}.log
+        assert!(path_str.contains("scp_deploy@host1_deploy@host2_11111.log"));
     }
 
     #[cfg(not(miri))]
     #[test]
     fn generate_scp_log_path_single_host() {
         // Arrange
-        let runner = MockCommandRunner::new();
+        let runner = MockCommandRunner::new().with_run_response(
+            "tmux display-message -p #{pane_pid}",
+            CommandOutput {
+                exit_code: 0,
+                stdout: String::from("22222\n"),
+                stderr: String::new(),
+            },
+        );
+        let pairs = vec![(String::from("root"), String::from("web-server"))];
 
         // Act
-        let path = generate_scp_log_path(&runner, "root", "web-server");
+        let path = generate_scp_log_path(&runner, &pairs);
         let path_str = path.to_string_lossy();
 
         // Assert
-        assert!(path_str.contains("scp_root@web-server.log"));
+        assert!(path_str.contains("scp_root@web-server_22222.log"));
         assert!(path_str.ends_with(".log"));
+    }
+
+    #[cfg(not(miri))]
+    #[test]
+    fn generate_scp_log_path_multi_host_different_users() {
+        // Arrange
+        let runner = MockCommandRunner::new().with_run_response(
+            "tmux display-message -p #{pane_pid}",
+            CommandOutput {
+                exit_code: 0,
+                stdout: String::from("33333\n"),
+                stderr: String::new(),
+            },
+        );
+        let pairs = vec![
+            (String::from("alice"), String::from("host1")),
+            (String::from("bob"), String::from("host2")),
+        ];
+
+        // Act
+        let path = generate_scp_log_path(&runner, &pairs);
+        let path_str = path.to_string_lossy();
+
+        // Assert — each host gets its own user@host segment, followed by pane_pid
+        assert!(path_str.contains("scp_alice@host1_bob@host2_33333.log"));
     }
 
     #[cfg(not(miri))]
@@ -377,9 +535,10 @@ mod tests {
         let runner = MockCommandRunner::new();
         let now = Local::now();
         let expected_date = now.format("%Y/%m/%d").to_string();
+        let pairs = vec![(String::from("user"), String::from("host"))];
 
         // Act
-        let path = generate_scp_log_path(&runner, "user", "host");
+        let path = generate_scp_log_path(&runner, &pairs);
         let path_str = path.to_string_lossy();
 
         // Assert
@@ -396,9 +555,10 @@ mod tests {
         let runner = MockCommandRunner::new();
         let now = Local::now();
         let expected_prefix = now.format("%Y%m%dT%H%M").to_string();
+        let pairs = vec![(String::from("admin"), String::from("db-server"))];
 
         // Act
-        let path = generate_scp_log_path(&runner, "admin", "db-server");
+        let path = generate_scp_log_path(&runner, &pairs);
         let path_str = path.to_string_lossy();
 
         // Assert
@@ -410,20 +570,6 @@ mod tests {
 
     #[cfg(not(miri))]
     #[test]
-    fn generate_scp_log_path_special_characters_in_user() {
-        // Arrange
-        let runner = MockCommandRunner::new();
-
-        // Act
-        let path = generate_scp_log_path(&runner, "deploy-ci", "prod_staging");
-        let path_str = path.to_string_lossy();
-
-        // Assert
-        assert!(path_str.contains("scp_deploy-ci@prod_staging.log"));
-    }
-
-    #[cfg(not(miri))]
-    #[test]
     fn setup_scp_session_succeeds_with_mock_runner() {
         // Arrange
         let tmp = TempDir::new().unwrap();
@@ -431,10 +577,16 @@ mod tests {
         let runner = MockCommandRunner::new();
         let ssh_details = vec![String::from("hostname example.com")];
         let agent_keys = vec![String::from("SHA256:abc key@host (ED25519)")];
+        let user_at_hosts = vec![String::from("alice@host1"), String::from("bob@host2")];
 
         // Act
-        let result =
-            setup_scp_session(&runner, &log_path, "host1_host2", &ssh_details, &agent_keys);
+        let result = setup_scp_session(
+            &runner,
+            &log_path,
+            &user_at_hosts,
+            &ssh_details,
+            &agent_keys,
+        );
 
         // Assert
         assert!(
@@ -456,9 +608,10 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let log_path = tmp.path().join("nested").join("dir").join("scp.log");
         let runner = MockCommandRunner::new();
+        let user_at_hosts = vec![String::from("user@myhost")];
 
         // Act
-        let result = setup_scp_session(&runner, &log_path, "myhost", &[], &[]);
+        let result = setup_scp_session(&runner, &log_path, &user_at_hosts, &[], &[]);
 
         // Assert
         assert!(result.is_ok());
@@ -472,9 +625,10 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let log_path = tmp.path().join("empty.log");
         let runner = MockCommandRunner::new();
+        let user_at_hosts = vec![String::from("user@host")];
 
         // Act
-        let result = setup_scp_session(&runner, &log_path, "host", &[], &[]);
+        let result = setup_scp_session(&runner, &log_path, &user_at_hosts, &[], &[]);
 
         // Assert
         assert!(result.is_ok());
@@ -490,11 +644,11 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let log_path = tmp.path().join("teardown.log");
         let runner = MockCommandRunner::new();
-        let remote_hosts = vec![String::from("host1"), String::from("host2")];
+        let user_at_hosts = vec![String::from("alice@host1"), String::from("bob@host2")];
 
         // Act / Assert - should not panic regardless of success flag
-        teardown_scp_session(&runner, &log_path, &remote_hosts, true, "0s", "");
-        teardown_scp_session(&runner, &log_path, &remote_hosts, false, "0s", "");
+        teardown_scp_session(&runner, &log_path, &user_at_hosts, true, "0s", "");
+        teardown_scp_session(&runner, &log_path, &user_at_hosts, false, "0s", "");
     }
 
     #[cfg(not(miri))]
@@ -504,10 +658,10 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let log_path = tmp.path().join("single.log");
         let runner = MockCommandRunner::new();
-        let remote_hosts = vec![String::from("production")];
+        let user_at_hosts = vec![String::from("deploy@production")];
 
         // Act / Assert - should complete without panic
-        teardown_scp_session(&runner, &log_path, &remote_hosts, true, "0s", "");
+        teardown_scp_session(&runner, &log_path, &user_at_hosts, true, "0s", "");
     }
 
     #[cfg(not(miri))]
@@ -517,10 +671,10 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let log_path = tmp.path().join("fail.log");
         let runner = MockCommandRunner::new();
-        let remote_hosts = vec![String::from("staging")];
+        let user_at_hosts = vec![String::from("ci@staging")];
 
         // Act / Assert - failure flag should not cause panic
-        teardown_scp_session(&runner, &log_path, &remote_hosts, false, "0s", "");
+        teardown_scp_session(&runner, &log_path, &user_at_hosts, false, "0s", "");
     }
 
     #[cfg(not(miri))]
@@ -783,10 +937,10 @@ mod tests {
                     stderr: String::from("no server"),
                 },
             );
-        let remote_hosts = vec![String::from("host1")];
+        let user_at_hosts = vec![String::from("user@host1")];
 
         // Act / Assert — should not panic despite all tmux commands failing
-        teardown_scp_session(&runner, &log_path, &remote_hosts, true, "0s", "");
+        teardown_scp_session(&runner, &log_path, &user_at_hosts, true, "0s", "");
     }
 
     #[cfg(not(miri))]
@@ -795,9 +949,10 @@ mod tests {
         // Arrange — start::start needs a valid log path; pane/window cmds fail
         let tmp = TempDir::new().unwrap();
         let log_path = tmp.path().join("setup_err.log");
+        let user_at_hosts = vec![String::from("user@errhost")];
         let runner = MockCommandRunner::new()
             .with_run_response(
-                "tmux select-pane -T scp:errhost",
+                "tmux select-pane -T scp:user@errhost",
                 CommandOutput {
                     exit_code: 1,
                     stdout: String::new(),
@@ -813,7 +968,7 @@ mod tests {
                 },
             )
             .with_run_response(
-                "tmux set-option -p @fterm_ssh_host errhost",
+                "tmux set-option -p @fterm_ssh_host scp:user@errhost",
                 CommandOutput {
                     exit_code: 1,
                     stdout: String::new(),
@@ -822,7 +977,7 @@ mod tests {
             );
 
         // Act — setup should succeed (pane/window failures are just warnings)
-        let result = setup_scp_session(&runner, &log_path, "errhost", &[], &[]);
+        let result = setup_scp_session(&runner, &log_path, &user_at_hosts, &[], &[]);
 
         // Assert
         assert!(

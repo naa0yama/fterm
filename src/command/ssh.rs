@@ -18,7 +18,7 @@ use crate::external::CommandRunner;
 use crate::logging::start;
 use crate::logging::stop;
 use crate::tmux::pane;
-use crate::tmux::session::{TmuxAction, ensure_tmux, get_tmux_identifiers};
+use crate::tmux::session::{TmuxAction, ensure_tmux, get_pane_pid};
 use crate::tmux::window;
 use crate::util::dry_run;
 use crate::util::duration;
@@ -378,9 +378,9 @@ fn generate_log_path(
     let date_dir = now.format("%Y/%m/%d").to_string();
     let timestamp = now.format("%Y%m%dT%H%M%S").to_string();
 
-    let tmux_ids = get_tmux_identifiers(runner);
+    let pane_pid = get_pane_pid(runner);
 
-    let filename = format!("{timestamp}_{tmux_ids}_{cmd_type}_{user}@{hostname}.log");
+    let filename = format!("{timestamp}_{cmd_type}_{user}@{hostname}_{pane_pid}.log");
 
     PathBuf::from(&prefix).join(&date_dir).join(&filename)
 }
@@ -409,77 +409,22 @@ mod tests {
     #[test]
     fn generate_log_path_contains_expected_parts() {
         // Arrange
-        use crate::external::MockCommandRunner;
-        let runner = MockCommandRunner::new();
+        use crate::external::{CommandOutput, MockCommandRunner};
+        let runner = MockCommandRunner::new().with_run_response(
+            "tmux display-message -p #{pane_pid}",
+            CommandOutput {
+                exit_code: 0,
+                stdout: String::from("12345\n"),
+                stderr: String::new(),
+            },
+        );
 
         // Act
         let path = generate_log_path(&runner, "deploy", "server1", "ssh");
         let path_str = path.to_string_lossy();
 
         // Assert
-        assert!(path_str.contains("ssh_deploy@server1.log"));
-    }
-
-    // -- get_tmux_identifiers tests --
-
-    #[test]
-    fn get_tmux_identifiers_returns_trimmed_stdout_on_success() {
-        // Arrange
-        use crate::external::{CommandOutput, MockCommandRunner};
-        let runner = MockCommandRunner::new().with_run_response(
-            "tmux display-message -p #{session_name}-#{window_index}#{pane_index}",
-            CommandOutput {
-                exit_code: 0,
-                stdout: String::from("main-2.1\n"),
-                stderr: String::new(),
-            },
-        );
-
-        // Act
-        let result = get_tmux_identifiers(&runner);
-
-        // Assert
-        assert_eq!(result, "main-2.1");
-    }
-
-    #[test]
-    fn get_tmux_identifiers_returns_fallback_on_empty_stdout() {
-        // Arrange
-        use crate::external::{CommandOutput, MockCommandRunner};
-        let runner = MockCommandRunner::new().with_run_response(
-            "tmux display-message -p #{session_name}-#{window_index}#{pane_index}",
-            CommandOutput {
-                exit_code: 0,
-                stdout: String::new(),
-                stderr: String::new(),
-            },
-        );
-
-        // Act
-        let result = get_tmux_identifiers(&runner);
-
-        // Assert
-        assert_eq!(result, "unknown-0.0");
-    }
-
-    #[test]
-    fn get_tmux_identifiers_returns_fallback_on_failure() {
-        // Arrange
-        use crate::external::{CommandOutput, MockCommandRunner};
-        let runner = MockCommandRunner::new().with_run_response(
-            "tmux display-message -p #{session_name}-#{window_index}#{pane_index}",
-            CommandOutput {
-                exit_code: 1,
-                stdout: String::new(),
-                stderr: String::from("error: no tmux server"),
-            },
-        );
-
-        // Act
-        let result = get_tmux_identifiers(&runner);
-
-        // Assert
-        assert_eq!(result, "unknown-0.0");
+        assert!(path_str.contains("ssh_deploy@server1_12345.log"));
     }
 
     // -- parse_connection_info tests --
@@ -1045,14 +990,14 @@ mod tests {
 
     #[cfg(not(miri))]
     #[test]
-    fn generate_log_path_uses_tmux_identifiers() {
+    fn generate_log_path_uses_pane_pid() {
         // Arrange
         use crate::external::{CommandOutput, MockCommandRunner};
         let runner = MockCommandRunner::new().with_run_response(
-            "tmux display-message -p #{session_name}-#{window_index}#{pane_index}",
+            "tmux display-message -p #{pane_pid}",
             CommandOutput {
                 exit_code: 0,
-                stdout: String::from("dev-3.2"),
+                stdout: String::from("9999\n"),
                 stderr: String::new(),
             },
         );
@@ -1061,8 +1006,7 @@ mod tests {
         let path = generate_log_path(&runner, "admin", "web01", "ssh");
         let path_str = path.to_string_lossy();
 
-        // Assert
-        assert!(path_str.contains("dev-3.2"));
-        assert!(path_str.contains("ssh_admin@web01.log"));
+        // Assert — pane_pid is at the end, before .log
+        assert!(path_str.contains("ssh_admin@web01_9999.log"));
     }
 }

@@ -6,7 +6,21 @@
 /// from arguments containing `:` (the `host:path` format).
 #[must_use]
 pub fn extract_hosts(args: &[String]) -> Vec<String> {
-    let mut hosts = Vec::new();
+    extract_user_host_pairs(args)
+        .into_iter()
+        .map(|(_, host)| host)
+        .collect()
+}
+
+/// Extract remote (optional-user, host) pairs from SCP arguments.
+///
+/// Returns each unique host with its explicitly specified user (if any).
+/// For `user@host:path`, returns `(Some("user"), "host")`.
+/// For `host:path`, returns `(None, "host")`.
+/// Preserves first-occurrence order; duplicates (by host) are skipped.
+#[must_use]
+pub fn extract_user_host_pairs(args: &[String]) -> Vec<(Option<String>, String)> {
+    let mut pairs: Vec<(Option<String>, String)> = Vec::new();
     let mut skip_next = false;
 
     for arg in args {
@@ -33,26 +47,26 @@ pub fn extract_hosts(args: &[String]) -> Vec<String> {
         if let Some(colon_pos) = arg.find(':') {
             let host_part = &arg[..colon_pos];
             if !host_part.is_empty() {
-                // Handle user@host format
-                let host = host_part
-                    .rsplit_once('@')
-                    .map_or(host_part, |(_, h)| h)
-                    .to_owned();
-                if !host.is_empty() && !hosts.contains(&host) {
-                    hosts.push(host);
+                let (user, host) = host_part.rsplit_once('@').map_or_else(
+                    || (None, host_part.to_owned()),
+                    |(u, h)| (Some(u.to_owned()), h.to_owned()),
+                );
+                let already_seen = pairs.iter().any(|(_, h)| h == &host);
+                if !host.is_empty() && !already_seen {
+                    pairs.push((user, host));
                 }
             }
         }
     }
 
-    hosts
+    pairs
 }
 
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]
 
-    use super::extract_hosts;
+    use super::{extract_hosts, extract_user_host_pairs};
 
     fn s(args: &[&str]) -> Vec<String> {
         args.iter().map(|a| String::from(*a)).collect()
@@ -98,5 +112,47 @@ mod tests {
     fn skip_identity_option() {
         let result = extract_hosts(&s(&["-i", "/key", "host:/path"]));
         assert_eq!(result, vec!["host"]);
+    }
+
+    // extract_user_host_pairs tests
+
+    #[test]
+    fn pairs_no_user() {
+        let result = extract_user_host_pairs(&s(&["host1:/path", "local.txt"]));
+        assert_eq!(result, vec![(None, String::from("host1"))]);
+    }
+
+    #[test]
+    fn pairs_with_explicit_user() {
+        let result = extract_user_host_pairs(&s(&["alice@host1:/path"]));
+        assert_eq!(
+            result,
+            vec![(Some(String::from("alice")), String::from("host1"))]
+        );
+    }
+
+    #[test]
+    fn pairs_mixed_user_and_no_user() {
+        let result = extract_user_host_pairs(&s(&["alice@host1:/a", "host2:/b"]));
+        assert_eq!(
+            result,
+            vec![
+                (Some(String::from("alice")), String::from("host1")),
+                (None, String::from("host2")),
+            ]
+        );
+    }
+
+    #[test]
+    fn pairs_dedup_by_host() {
+        let result = extract_user_host_pairs(&s(&["host1:/a", "alice@host1:/b"]));
+        // First occurrence wins
+        assert_eq!(result, vec![(None, String::from("host1"))]);
+    }
+
+    #[test]
+    fn pairs_empty_args() {
+        let result = extract_user_host_pairs(&[]);
+        assert!(result.is_empty());
     }
 }

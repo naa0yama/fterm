@@ -10,6 +10,13 @@ use std::time::{Duration, Instant};
 use anyhow::{Context, Result};
 use tracing::debug;
 
+/// Hard timeout (seconds) for SSH-family helper commands.
+///
+/// Matches fish `__fterm_run_ssh_cmd` behaviour: gpg-agent / ssh-agent
+/// forwarding can freeze indefinitely, which would block the terminal.
+/// Every helper invocation is killed after this many seconds.
+const SSH_HELPER_TIMEOUT_SECS: u64 = 1;
+
 /// Resolve the path for an SSH-related command.
 ///
 /// On MSYS2, searches known Windows OpenSSH directories for `{name}.exe`.
@@ -278,7 +285,7 @@ impl CommandRunner for RealCommandRunner {
 
         let ssh_cmd = resolve_ssh_command("ssh");
         let result = self
-            .run(&ssh_cmd, &args, 10)
+            .run(&ssh_cmd, &args, SSH_HELPER_TIMEOUT_SECS)
             .with_context(|| format!("ssh_resolve failed for host: {host}"))?;
 
         if result.exit_code != 0 {
@@ -299,7 +306,7 @@ impl CommandRunner for RealCommandRunner {
     fn ssh_agent_list(&self) -> Result<AgentListResult> {
         let ssh_add_cmd = resolve_ssh_command("ssh-add");
         let result = self
-            .run(&ssh_add_cmd, &["-l"], 5)
+            .run(&ssh_add_cmd, &["-l"], SSH_HELPER_TIMEOUT_SECS)
             .context("failed to list SSH agent keys")?;
 
         if result.exit_code == 0 {
@@ -330,7 +337,7 @@ impl CommandRunner for RealCommandRunner {
 
         let ssh_keygen_cmd = resolve_ssh_command("ssh-keygen");
         let result = self
-            .run(&ssh_keygen_cmd, &["-lf", path_str], 5)
+            .run(&ssh_keygen_cmd, &["-lf", path_str], SSH_HELPER_TIMEOUT_SECS)
             .with_context(|| format!("ssh_keygen_fingerprint failed for: {}", path.display()))?;
 
         if result.exit_code != 0 {
