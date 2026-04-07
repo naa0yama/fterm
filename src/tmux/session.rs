@@ -131,32 +131,41 @@ fn shell_escape(token: &str) -> String {
     format!("'{escaped}'")
 }
 
+/// Run `tmux display-message -p <format>` and return the trimmed stdout.
+///
+/// Returns `None` on command failure, non-zero exit, or empty output.
+fn tmux_display_message(runner: &dyn CommandRunner, format: &str) -> Option<String> {
+    let result = runner.run("tmux", &["display-message", "-p", format], 5);
+    match result {
+        Ok(output) if output.exit_code == 0 => {
+            let trimmed = output.stdout.trim();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(String::from(trimmed))
+            }
+        }
+        _ => None,
+    }
+}
+
 /// Get tmux session, window, and pane identifiers via `tmux display-message`.
 ///
 /// Returns a string like `"main-2.1"` (session-window.pane).
 /// Falls back to `"unknown-0.0"` on any failure.
 #[must_use]
 pub fn get_tmux_identifiers(runner: &dyn CommandRunner) -> String {
-    let result = runner.run(
-        "tmux",
-        &[
-            "display-message",
-            "-p",
-            "#{session_name}-#{window_index}#{pane_index}",
-        ],
-        5,
-    );
-    match result {
-        Ok(output) if output.exit_code == 0 => {
-            let trimmed = output.stdout.trim();
-            if trimmed.is_empty() {
-                String::from(UNKNOWN_TMUX_ID)
-            } else {
-                String::from(trimmed)
-            }
-        }
-        _ => String::from(UNKNOWN_TMUX_ID),
-    }
+    tmux_display_message(runner, "#{session_name}-#{window_index}#{pane_index}")
+        .unwrap_or_else(|| String::from(UNKNOWN_TMUX_ID))
+}
+
+/// Get the PID of the shell process running in the current tmux pane.
+///
+/// Uses `tmux display-message -p '#{pane_pid}'`.
+/// Falls back to the current process ID when tmux is unavailable.
+#[must_use]
+pub fn get_pane_pid(runner: &dyn CommandRunner) -> String {
+    tmux_display_message(runner, "#{pane_pid}").unwrap_or_else(|| std::process::id().to_string())
 }
 
 #[cfg(test)]
@@ -336,5 +345,130 @@ mod tests {
 
         // Assert
         assert_eq!(result, "fterm");
+    }
+
+    // -- get_tmux_identifiers tests --
+
+    #[test]
+    fn get_tmux_identifiers_returns_trimmed_stdout_on_success() {
+        // Arrange
+        let runner = MockCommandRunner::new().with_run_response(
+            "tmux display-message -p #{session_name}-#{window_index}#{pane_index}",
+            CommandOutput {
+                exit_code: 0,
+                stdout: String::from("main-2.1\n"),
+                stderr: String::new(),
+            },
+        );
+
+        // Act
+        let result = get_tmux_identifiers(&runner);
+
+        // Assert
+        assert_eq!(result, "main-2.1");
+    }
+
+    #[test]
+    fn get_tmux_identifiers_returns_fallback_on_empty_stdout() {
+        // Arrange
+        let runner = MockCommandRunner::new().with_run_response(
+            "tmux display-message -p #{session_name}-#{window_index}#{pane_index}",
+            CommandOutput {
+                exit_code: 0,
+                stdout: String::new(),
+                stderr: String::new(),
+            },
+        );
+
+        // Act
+        let result = get_tmux_identifiers(&runner);
+
+        // Assert
+        assert_eq!(result, "unknown-0.0");
+    }
+
+    #[test]
+    fn get_tmux_identifiers_returns_fallback_on_failure() {
+        // Arrange
+        let runner = MockCommandRunner::new().with_run_response(
+            "tmux display-message -p #{session_name}-#{window_index}#{pane_index}",
+            CommandOutput {
+                exit_code: 1,
+                stdout: String::new(),
+                stderr: String::from("error: no tmux server"),
+            },
+        );
+
+        // Act
+        let result = get_tmux_identifiers(&runner);
+
+        // Assert
+        assert_eq!(result, "unknown-0.0");
+    }
+
+    // -- get_pane_pid tests --
+
+    #[test]
+    fn get_pane_pid_returns_trimmed_pid_on_success() {
+        // Arrange
+        let runner = MockCommandRunner::new().with_run_response(
+            "tmux display-message -p #{pane_pid}",
+            CommandOutput {
+                exit_code: 0,
+                stdout: String::from("8765\n"),
+                stderr: String::new(),
+            },
+        );
+
+        // Act
+        let result = get_pane_pid(&runner);
+
+        // Assert
+        assert_eq!(result, "8765");
+    }
+
+    #[test]
+    fn get_pane_pid_falls_back_to_process_id_on_empty_stdout() {
+        // Arrange
+        let runner = MockCommandRunner::new().with_run_response(
+            "tmux display-message -p #{pane_pid}",
+            CommandOutput {
+                exit_code: 0,
+                stdout: String::new(),
+                stderr: String::new(),
+            },
+        );
+
+        // Act
+        let result = get_pane_pid(&runner);
+
+        // Assert — fallback is a numeric process ID
+        assert!(!result.is_empty(), "fallback should not be empty");
+        assert!(
+            result.parse::<u32>().is_ok(),
+            "fallback should be a number: {result}"
+        );
+    }
+
+    #[test]
+    fn get_pane_pid_falls_back_to_process_id_on_failure() {
+        // Arrange
+        let runner = MockCommandRunner::new().with_run_response(
+            "tmux display-message -p #{pane_pid}",
+            CommandOutput {
+                exit_code: 1,
+                stdout: String::new(),
+                stderr: String::from("error: no tmux server"),
+            },
+        );
+
+        // Act
+        let result = get_pane_pid(&runner);
+
+        // Assert — fallback is a numeric process ID
+        assert!(
+            result.parse::<u32>().is_ok(),
+            "fallback should be numeric: {result}"
+        );
     }
 }

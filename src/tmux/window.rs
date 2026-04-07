@@ -3,6 +3,8 @@
 //! Manages the `@fterm_ssh_count` window option and window rename settings
 //! to keep track of active SSH connections per window.
 
+use std::convert::TryInto as _;
+
 use anyhow::{Context, Result};
 use tracing::debug;
 
@@ -10,43 +12,55 @@ use crate::external::CommandRunner;
 
 /// Increment the `@fterm_ssh_count` window option by one.
 ///
-/// Reads the current value (defaulting to `0`), adds one, and writes it back.
+/// Uses a tmux server-side arithmetic format expression to atomically increment
+/// the count, avoiding the read-modify-write race when multiple panes open SSH
+/// connections simultaneously.
+///
 /// Also disables window renaming so the user-set title is preserved.
 ///
 /// # Errors
 ///
 /// Returns an error if any tmux command fails to execute.
 pub fn increment_ssh_count(runner: &dyn CommandRunner) -> Result<()> {
-    let current = read_ssh_count(runner)?;
-    let new_count = current.saturating_add(1);
-    debug!(current, new_count, "incrementing @fterm_ssh_count");
-
-    write_ssh_count(runner, new_count)?;
+    debug!("incrementing @fterm_ssh_count (atomic)");
+    set_window_option(
+        runner,
+        "@fterm_ssh_count",
+        "#{e|+:#{?@fterm_ssh_count,#{@fterm_ssh_count},0},1}",
+    )?;
     disable_rename(runner)?;
-
     Ok(())
 }
 
 /// Decrement the `@fterm_ssh_count` window option by one.
 ///
-/// When the count reaches zero, `allow-rename` and `automatic-rename` are
-/// restored to `on` so tmux can manage window titles again.
+/// Uses a tmux server-side arithmetic format expression to atomically decrement
+/// the count, then reads the result back to detect when it reaches zero.
+///
+/// When the count reaches zero (or underflows), `allow-rename` and
+/// `automatic-rename` are restored to `on` so tmux can manage window titles
+/// again.
 ///
 /// # Errors
 ///
 /// Returns an error if any tmux command fails to execute.
 pub fn decrement_ssh_count(runner: &dyn CommandRunner) -> Result<()> {
-    let current = read_ssh_count(runner)?;
-    let new_count = current.saturating_sub(1);
-    debug!(current, new_count, "decrementing @fterm_ssh_count");
+    set_window_option(
+        runner,
+        "@fterm_ssh_count",
+        "#{e|-:#{?@fterm_ssh_count,#{@fterm_ssh_count},0},1}",
+    )?;
+
+    // Read back to detect when the count has reached zero.
+    // Negative values (underflow) are clamped to 0.
+    let new_count = read_ssh_count(runner)?;
+    debug!(new_count, "decremented @fterm_ssh_count");
 
     if new_count == 0 {
         debug!("ssh count reached 0; unsetting @fterm_ssh_count and restoring rename");
         unset_window_option(runner, "@fterm_ssh_count")?;
         set_window_option(runner, "allow-rename", "on")?;
         set_window_option(runner, "automatic-rename", "on")?;
-    } else {
-        write_ssh_count(runner, new_count)?;
     }
 
     Ok(())
@@ -71,6 +85,9 @@ pub fn disable_rename(runner: &dyn CommandRunner) -> Result<()> {
 // ---------------------------------------------------------------------------
 
 /// Read the current `@fterm_ssh_count` value, defaulting to 0.
+///
+/// Parses as `i64` to handle negative values that can result from the atomic
+/// decrement format expression, then clamps to 0.
 fn read_ssh_count(runner: &dyn CommandRunner) -> Result<u32> {
     let output = runner
         .run("tmux", &["show-window-option", "-v", "@fterm_ssh_count"], 5)
@@ -80,17 +97,11 @@ fn read_ssh_count(runner: &dyn CommandRunner) -> Result<u32> {
         return Ok(0);
     }
 
-    output
-        .stdout
-        .trim()
-        .parse::<u32>()
-        .context("@fterm_ssh_count is not a valid u32")
-}
-
-/// Write the `@fterm_ssh_count` window option.
-fn write_ssh_count(runner: &dyn CommandRunner, count: u32) -> Result<()> {
-    let count_str = count.to_string();
-    set_window_option(runner, "@fterm_ssh_count", &count_str)
+    let raw: i64 = output.stdout.trim().parse().unwrap_or(0);
+    // .max(0) clamps negatives from atomic decrement underflow;
+    // .try_into() can only fail if raw > u32::MAX (unreachable in practice).
+    let value: u32 = raw.max(0).try_into().unwrap_or(0);
+    Ok(value)
 }
 
 /// Unset (remove) a tmux window option.
@@ -130,12 +141,12 @@ mod tests {
     use super::*;
     use crate::external::{CommandOutput, MockCommandRunner};
 
-    fn mock_with_count(count: u32) -> MockCommandRunner {
+    fn mock_with_readback(stdout: &str) -> MockCommandRunner {
         MockCommandRunner::new().with_run_response(
             "tmux show-window-option -v @fterm_ssh_count",
             CommandOutput {
                 exit_code: 0,
-                stdout: count.to_string(),
+                stdout: String::from(stdout),
                 stderr: String::new(),
             },
         )
@@ -143,20 +154,8 @@ mod tests {
 
     #[test]
     fn increment_from_zero() {
-        // Arrange
-        let runner = mock_with_count(0);
-
-        // Act
-        let result = increment_ssh_count(&runner);
-
-        // Assert
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn increment_from_existing_value() {
-        // Arrange
-        let runner = mock_with_count(2);
+        // Arrange — increment only writes; no read-back needed
+        let runner = MockCommandRunner::new();
 
         // Act
         let result = increment_ssh_count(&runner);
@@ -167,8 +166,8 @@ mod tests {
 
     #[test]
     fn decrement_to_zero_restores_rename() {
-        // Arrange
-        let runner = mock_with_count(1);
+        // Arrange — read-back returns "0" to trigger rename restore
+        let runner = mock_with_readback("0");
 
         // Act
         let result = decrement_ssh_count(&runner);
@@ -179,8 +178,8 @@ mod tests {
 
     #[test]
     fn decrement_above_zero_keeps_rename_off() {
-        // Arrange
-        let runner = mock_with_count(3);
+        // Arrange — read-back returns "2" (still active connections)
+        let runner = mock_with_readback("2");
 
         // Act
         let result = decrement_ssh_count(&runner);
@@ -191,14 +190,26 @@ mod tests {
 
     #[test]
     fn decrement_from_zero_stays_at_zero() {
-        // Arrange
-        let runner = mock_with_count(0);
+        // Arrange — atomic decrement may produce "-1"; clamp to 0
+        let runner = mock_with_readback("-1");
 
         // Act
         let result = decrement_ssh_count(&runner);
 
         // Assert
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn read_ssh_count_clamps_negative() {
+        // Arrange — atomic decrement on a zero counter produces "-1"
+        let runner = mock_with_readback("-1");
+
+        // Act
+        let count = read_ssh_count(&runner).unwrap();
+
+        // Assert
+        assert_eq!(count, 0);
     }
 
     #[test]
