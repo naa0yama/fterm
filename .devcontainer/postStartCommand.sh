@@ -57,13 +57,18 @@ cat ~/.ssh/id_ed25519.pub > ~/.ssh/authorized_keys
 
 mv -v ~/.ssh/id_ed25519			/app/tests/.ssh/conf.d/keys/private/id_ed25519.pem
 mv -v ~/.ssh/id_ed25519.pub		/app/tests/.ssh/conf.d/keys/public/id_ed25519.pem
-rm -rf ~/.ssh/id_ed25519 ~/.ssh/id_ed25519.pub
+rm -rf ~/.ssh/id_ed25519		~/.ssh/id_ed25519.pub
 
-# 2. sshd privilege separation directory
+# 2. Link test SSH conf.d into ~/.ssh so OpenSSH resolves Include paths correctly
+#    ssh -F /app/tests/.ssh/config resolves relative Includes from ~/.ssh/,
+#    so ~/.ssh/conf.d must exist and point to the test config directory.
+ln -sf /app/tests/.ssh/conf.d ~/.ssh/conf.d
+
+# 3. sshd privilege separation directory
 sudo mkdir -p /run/sshd
 
-# 3. Generate host keys if missing
+# 4. Generate host keys if missing
 sudo ssh-keygen -A
 
-# 4. Start sshd
+# 5. Start sshd
 sudo /usr/sbin/sshd
