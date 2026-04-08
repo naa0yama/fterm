@@ -196,7 +196,7 @@ echo 'badges branch initialized. Badges will be generated on first CI run.'
 """
 
 [tasks."o2:install"]
-description = "Install OpenObserve to ~/.local/bin"
+description = "Install OpenObserve Enterprise to ~/.local/bin"
 run = """
 set -euo pipefail
 
@@ -224,8 +224,8 @@ case "$(uname -m)" in
     ;;
 esac
 
-filename="openobserve-${version}-linux-${arch}-musl.tar.gz"
-url="https://github.com/openobserve/openobserve/releases/download/${version}/${filename}"
+filename="openobserve-ee-${version}-linux-${arch}-musl.tar.gz"
+url="https://downloads.openobserve.ai/releases/o2-enterprise/${version}/${filename}"
 tmpfile="$(mktemp)"
 trap 'rm -f "${tmpfile}"' EXIT
 
