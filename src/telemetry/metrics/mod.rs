@@ -49,7 +49,10 @@ impl Meters {
     /// been invoked; calling beforehand produces no-op instruments.
     #[must_use]
     pub fn new() -> Self {
-        let meter = opentelemetry::global::meter(env!("CARGO_PKG_NAME"));
+        Self::from_meter(&opentelemetry::global::meter(env!("CARGO_PKG_NAME")))
+    }
+
+    fn from_meter(meter: &opentelemetry::metrics::Meter) -> Self {
         Self {
             command_duration: meter
                 .f64_histogram(fterm_metric::COMMAND_DURATION)
@@ -100,18 +103,26 @@ mod tests {
     #![allow(clippy::panic)]
     #![allow(clippy::redundant_closure_for_method_calls)]
 
+    use std::time::Duration;
+
+    use opentelemetry::metrics::MeterProvider as _;
     use opentelemetry_sdk::metrics::{
         InMemoryMetricExporter, PeriodicReader, SdkMeterProvider,
         data::{AggregatedMetrics, MetricData},
     };
-    use serial_test::serial;
 
     use super::*;
 
     /// Build a test `SdkMeterProvider` backed by an in-memory exporter.
+    ///
+    /// Uses a 1-hour `PeriodicReader` interval so the background collection
+    /// thread never fires during tests; only `force_flush` triggers an export.
+    /// Meters are created directly from the provider — no global state is used.
     fn test_provider() -> (SdkMeterProvider, InMemoryMetricExporter) {
         let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone()).build();
+        let reader = PeriodicReader::builder(exporter.clone())
+            .with_interval(Duration::from_secs(3600))
+            .build();
         let provider = SdkMeterProvider::builder().with_reader(reader).build();
         (provider, exporter)
     }
@@ -129,12 +140,10 @@ mod tests {
     }
 
     #[test]
-    #[serial]
     fn record_command_duration_adds_histogram_data_point() {
-        // Arrange
+        // Arrange — create Meters directly from provider; no global state
         let (provider, exporter) = test_provider();
-        opentelemetry::global::set_meter_provider(provider.clone());
-        let meters = Meters::new();
+        let meters = Meters::from_meter(&provider.meter(env!("CARGO_PKG_NAME")));
 
         // Act
         meters.record_command_duration("flog", 0.123);
@@ -155,12 +164,10 @@ mod tests {
     }
 
     #[test]
-    #[serial]
     fn record_command_error_increments_counter() {
-        // Arrange
+        // Arrange — create Meters directly from provider; no global state
         let (provider, exporter) = test_provider();
-        opentelemetry::global::set_meter_provider(provider.clone());
-        let meters = Meters::new();
+        let meters = Meters::from_meter(&provider.meter(env!("CARGO_PKG_NAME")));
 
         // Act
         meters.record_command_error("ssh", "io");
