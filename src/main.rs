@@ -5,102 +5,91 @@ pub mod command;
 pub mod config;
 pub mod external;
 pub mod logging;
+pub mod telemetry;
 pub mod tmux;
 pub mod util;
 pub mod validate;
 
 use std::io;
+use std::time::Instant;
 
 use anyhow::Context;
 use clap::Parser;
-use tracing_subscriber::filter::EnvFilter;
-#[cfg(not(feature = "otel"))]
-use tracing_subscriber::fmt;
-#[cfg(feature = "otel")]
-use tracing_subscriber::layer::SubscriberExt;
-#[cfg(feature = "otel")]
-use tracing_subscriber::util::SubscriberInitExt;
 
 use crate::cli::{Cli, Commands};
+use crate::telemetry::metrics::Meters;
 
 // NOTEST(unreachable): process entry point; global init and process::exit are not unit-testable
 fn main() {
-    // NOTEST(env): OTel feature gate; compiled only with --features otel
-    #[cfg(not(feature = "otel"))]
-    {
-        fmt()
-            .with_env_filter(
-                EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
-            )
-            .init();
-    }
+    let providers = telemetry::init_otel();
+    telemetry::init_subscriber(&providers);
 
-    #[cfg(feature = "otel")]
-    {
-        let env_filter =
-            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
-        let fmt_layer = tracing_subscriber::fmt::layer();
+    let meters = Meters::default();
 
-        let otel_layer = std::env::var("OTEL_EXPORTER_OTLP_ENDPOINT")
-            .ok()
-            .and_then(|_| {
-                let exporter = opentelemetry_otlp::SpanExporter::builder()
-                    .with_http()
-                    .build()
-                    .ok()?;
+    let exit_code = {
+        // Root span wraps all command processing so child spans share a
+        // single trace_id. The block scope ensures _guard drops — and
+        // therefore the root span ends — before shutdown_otel runs.
+        // NOTEST(env): OTel feature gate; compiled only with --features otel
+        #[cfg(feature = "otel")]
+        let _root = tracing::info_span!("main").entered();
 
-                let tracer_provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
-                    .with_simple_exporter(exporter)
-                    .build();
-
-                let tracer = opentelemetry::trace::TracerProvider::tracer(
-                    &tracer_provider,
-                    env!("CARGO_PKG_NAME"),
-                );
-                opentelemetry::global::set_tracer_provider(tracer_provider);
-
-                Some(tracing_opentelemetry::layer().with_tracer(tracer))
-            });
-
-        tracing_subscriber::registry()
-            .with(env_filter)
-            .with(fmt_layer)
-            .with(otel_layer)
-            .init();
-    }
-
-    let cli = Cli::parse();
-    let runner = external::RealCommandRunner::new();
-
-    let exit_code = match cli.command {
-        Commands::Fssh => run_subcommand(|| command::fssh::run(&runner)),
-        Commands::Ssh(args) => run_subcommand(|| command::ssh::run(&runner, &args.args)),
-        Commands::Scp(args) => run_subcommand(|| command::scp::run(&runner, &args.args)),
-        Commands::Flog => run_subcommand(command::flog::run),
-        Commands::Fgen => run_subcommand(command::fgen::run),
-        Commands::SshAdd(args) => run_subcommand(|| command::ssh_add::run(&args.args)),
-        Commands::SshKeygen(args) => run_subcommand(|| command::ssh_keygen::run(&args.args)),
-        Commands::Completion(args) => {
-            run_subcommand(|| command::completion::run(&args.shell, args.list_hosts))
-        }
-        Commands::LogFilter => run_subcommand(|| {
-            run_log_filter()?;
-            Ok(0)
-        }),
+        let cli = Cli::parse();
+        let runner = external::RealCommandRunner::new();
+        dispatch(cli, &runner, &meters)
     };
+
+    telemetry::shutdown_otel(providers);
 
     #[allow(clippy::exit)]
     std::process::exit(exit_code);
 }
 
-/// Execute a subcommand, logging errors and returning the exit code.
-fn run_subcommand<F: FnOnce() -> anyhow::Result<i32>>(f: F) -> i32 {
-    match f() {
+/// Dispatch subcommands, recording execution timing and error metrics.
+fn dispatch(cli: Cli, runner: &dyn external::CommandRunner, meters: &Meters) -> i32 {
+    match cli.command {
+        Commands::Fssh => run_timed(meters, "fssh", || command::fssh::run(runner)),
+        Commands::Ssh(args) => run_timed(meters, "ssh", || command::ssh::run(runner, &args.args)),
+        Commands::Scp(args) => run_timed(meters, "scp", || command::scp::run(runner, &args.args)),
+        Commands::Flog => run_timed(meters, "flog", command::flog::run),
+        Commands::Fgen => run_timed(meters, "fgen", command::fgen::run),
+        Commands::SshAdd(args) => {
+            run_timed(meters, "ssh-add", || command::ssh_add::run(&args.args))
+        }
+        Commands::SshKeygen(args) => run_timed(meters, "ssh-keygen", || {
+            command::ssh_keygen::run(&args.args)
+        }),
+        Commands::Completion(args) => run_timed(meters, "completion", || {
+            command::completion::run(&args.shell, args.list_hosts)
+        }),
+        Commands::LogFilter => run_timed(meters, "log-filter", || run_log_filter().map(|()| 0)),
+    }
+}
+
+/// Execute a timed subcommand, record metrics, and return the exit code.
+fn run_timed<F>(meters: &Meters, command: &str, f: F) -> i32
+where
+    F: FnOnce() -> anyhow::Result<i32>,
+{
+    let start = Instant::now();
+    let result = f();
+    meters.record_command_duration(command, start.elapsed().as_secs_f64());
+    match result {
         Ok(code) => code,
-        Err(e) => {
+        Err(ref e) => {
+            meters.record_command_error(command, error_kind(e));
             tracing::error!("{e:#}");
             1
         }
+    }
+}
+
+/// Classify an error into a short label for the `fterm.error.kind` attribute.
+fn error_kind(err: &anyhow::Error) -> &'static str {
+    if err.downcast_ref::<std::io::Error>().is_some() {
+        "io"
+    } else {
+        "unknown"
     }
 }
 
@@ -113,6 +102,9 @@ fn run_log_filter() -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)]
+    #![allow(clippy::indexing_slicing)]
+
     use std::io::Cursor;
 
     use super::*;
@@ -134,29 +126,65 @@ mod tests {
     }
 
     #[test]
-    fn run_subcommand_ok_returns_exit_code() {
-        // Arrange / Act
-        let result = run_subcommand(|| Ok(42));
+    fn run_timed_ok_returns_exit_code() {
+        // Arrange
+        let meters = Meters::default();
+
+        // Act
+        let result = run_timed(&meters, "test", || Ok(42));
 
         // Assert
         assert_eq!(result, 42);
     }
 
     #[test]
-    fn run_subcommand_err_returns_1() {
-        // Arrange / Act
-        let result = run_subcommand(|| Err(anyhow::anyhow!("something went wrong")));
+    fn run_timed_err_returns_1() {
+        // Arrange
+        let meters = Meters::default();
+
+        // Act
+        let result = run_timed(&meters, "test", || {
+            Err(anyhow::anyhow!("something went wrong"))
+        });
 
         // Assert
         assert_eq!(result, 1);
     }
 
     #[test]
-    fn run_subcommand_ok_zero_returns_0() {
-        // Arrange / Act
-        let result = run_subcommand(|| Ok(0));
+    fn run_timed_ok_zero_returns_0() {
+        // Arrange
+        let meters = Meters::default();
+
+        // Act
+        let result = run_timed(&meters, "test", || Ok(0));
 
         // Assert
         assert_eq!(result, 0);
+    }
+
+    #[test]
+    fn error_kind_io_error() {
+        // Arrange
+        let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "file not found");
+        let err = anyhow::Error::from(io_err);
+
+        // Act
+        let kind = error_kind(&err);
+
+        // Assert
+        assert_eq!(kind, "io");
+    }
+
+    #[test]
+    fn error_kind_unknown_error() {
+        // Arrange
+        let err = anyhow::anyhow!("some other error");
+
+        // Act
+        let kind = error_kind(&err);
+
+        // Assert
+        assert_eq!(kind, "unknown");
     }
 }

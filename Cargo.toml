@@ -27,9 +27,12 @@ pkg-fmt = "zip"
 [features]
 default = []
 otel = [
+	"dep:gethostname",
 	"dep:opentelemetry",
 	"dep:opentelemetry_sdk",
 	"dep:opentelemetry-otlp",
+	"dep:opentelemetry-appender-tracing",
+	"dep:opentelemetry-semantic-conventions",
 	"dep:tracing-opentelemetry",
 ]
 
@@ -56,9 +59,12 @@ tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
 
 # OpenTelemetry (optional, behind `otel` feature)
-opentelemetry = { version = "0.31", optional = true }
-opentelemetry-otlp = { version = "0.31", default-features = false, features = ["trace", "http-proto", "reqwest-blocking-client"], optional = true }
-opentelemetry_sdk = { version = "0.31", default-features = false, features = ["trace"], optional = true }
+gethostname = { version = "1", optional = true }
+opentelemetry = { version = "0.31", default-features = false, features = ["trace", "metrics", "logs"], optional = true }
+opentelemetry-appender-tracing = { version = "0.31", default-features = false, optional = true }
+opentelemetry-otlp = { version = "0.31", default-features = false, features = ["trace", "logs", "metrics", "http-proto", "reqwest-blocking-client"], optional = true }
+opentelemetry-semantic-conventions = { version = "0.31", default-features = false, features = ["semconv_experimental"], optional = true }
+opentelemetry_sdk = { version = "0.31", default-features = false, features = ["trace", "logs", "metrics"], optional = true }
 tracing-opentelemetry = { version = "0.32", default-features = false, optional = true }
 
 # Dev dependencies
@@ -68,6 +74,7 @@ nix = { version = "0.30", features = ["fs"] }
 
 [dev-dependencies]
 assert_cmd = "=2.1.2"
+opentelemetry_sdk = { version = "0.31", default-features = false, features = ["testing", "metrics"] }
 predicates = "=3.1.4"
 serial_test = "3"
 tempfile = "3"

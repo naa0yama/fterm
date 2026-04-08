@@ -52,6 +52,7 @@ pub fn run() -> Result<i32> {
 /// # Errors
 ///
 /// Returns an error if file I/O or user input fails.
+#[tracing::instrument(skip(reader, writer), err)]
 fn run_inner(ssh_home: &Path, reader: &mut dyn BufRead, writer: &mut dyn Write) -> Result<i32> {
     let template_path = ssh_home.join("template.conf");
 

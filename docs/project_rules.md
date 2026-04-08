@@ -517,19 +517,41 @@ tracing::info!("Process completed successfully");
 
 #### OpenTelemetry 対応（`otel` feature 有効時）
 
-コンテナ環境等で OpenTelemetry (OTLP) によるトレースエクスポートが必要な場合、
-`--features otel` でビルドし、環境変数 `OTEL_EXPORTER_OTLP_ENDPOINT` を設定する。
+コンテナ環境等で OpenTelemetry (OTLP) による 3 信号 (traces / logs / metrics) エクスポートが
+必要な場合、`--features otel` でビルドし、環境変数 `OTEL_EXPORTER_OTLP_ENDPOINT` を設定する。
 
-```rust
-// otel feature 有効時の初期化（main.rs）
-// OTEL_EXPORTER_OTLP_ENDPOINT が設定されていれば OTel レイヤーが追加される
-// 未設定の場合は fmt のみ（従来と同じ動作）
-tracing_subscriber::registry()
-    .with(env_filter)
-    .with(fmt_layer)
-    .with(otel_layer) // Option<Layer>: None なら無視
-    .init();
+**モジュール構成:**
+
 ```
+src/telemetry/
+├── mod.rs            # init_otel / init_subscriber / shutdown_otel
+├── conventions.rs    # fterm.* メトリクス名・属性キー定数
+└── metrics/
+    └── mod.rs        # Meters 構造体（command_duration / command_errors）
+```
+
+**3 信号の実装:**
+
+- **Traces**: `SdkTracerProvider` + batch `SpanExporter` (HTTP/OTLP)。`tracing::instrument` で
+  自動的にスパンを生成し、`OpenTelemetryTracingBridge` を介して OTel に橋渡し。
+- **Logs**: `SdkLoggerProvider` + batch `LogExporter`。`tracing::info!` 等を
+  `OpenTelemetryTracingBridge` 経由で OTel logs として送信。
+- **Metrics**: `SdkMeterProvider` + periodic `MetricExporter`。`Meters` 構造体が
+  `fterm.command.duration` (Histogram) と `fterm.command.errors` (Counter) を記録。
+
+**命名規約 (`src/telemetry/conventions.rs`):**
+
+| 定数                       | 値                       | 説明                          |
+| -------------------------- | ------------------------ | ----------------------------- |
+| `metric::COMMAND_DURATION` | `fterm.command.duration` | コマンド実行レイテンシ (秒)   |
+| `metric::COMMAND_ERRORS`   | `fterm.command.errors`   | エラー発生カウンター          |
+| `attribute::COMMAND`       | `fterm.command`          | サブコマンド名                |
+| `attribute::ERROR_KIND`    | `fterm.error.kind`       | エラー分類 (`io` / `unknown`) |
+
+**shutdown 順序 (必須):** tracer → meter (`force_flush` → `shutdown`) → logger
+
+ロガーを最後にシャットダウンすることで、tracer/meter のシャットダウンエラーを
+OTel logs に記録できる。
 
 **ビルド方法:**
 
@@ -537,11 +559,11 @@ tracing_subscriber::registry()
 # ターミナル用（OTel なし）
 cargo build --release
 
-# コンテナ用（OTel 対応）
+# コンテナ用（OTel 3 信号対応）
 cargo build --release --features otel
 ```
 
-**コンテナ実行時の環境変数:**
+**実行時の環境変数:**
 
 | 環境変数                      | 必須 | 説明                                                        |
 | ----------------------------- | ---- | ----------------------------------------------------------- |
@@ -551,8 +573,9 @@ cargo build --release --features otel
 
 **注意:**
 
-- アプリケーションコードの `tracing::info!` 等は変更不要
-- `otel` feature 無効時は OTel 依存が一切含まれず、従来のバイナリと同一
+- アプリケーションコードの `tracing::info!` 等は変更不要 — bridge 経由で自動的に OTel logs へ
+- `otel` feature 無効時は OTel 依存が一切含まれず、`Meters` は no-op 構造体になる
+- `OTEL_EXPORTER_OTLP_ENDPOINT` 未設定時はすべてのプロバイダーが `None` に降格 (graceful fallback)
 
 ### 9.2 デバッグ手法
 
@@ -673,10 +696,19 @@ std = [] # no-std対応の場合
 ```toml
 [features]
 default = []
-otel = [...]  # OpenTelemetry 対応（コンテナ環境向け）
+otel = [
+	"dep:gethostname",
+	"dep:opentelemetry",
+	"dep:opentelemetry_sdk",
+	"dep:opentelemetry-otlp",
+	"dep:opentelemetry-appender-tracing",
+	"dep:opentelemetry-semantic-conventions",
+	"dep:tracing-opentelemetry",
+]
 ```
 
-- `otel`: OpenTelemetry トレースエクスポート機能を有効化。コンテナビルド時に `--features otel` で指定
+- `otel`: OpenTelemetry 3 信号 (traces/logs/metrics) エクスポート機能を有効化。
+  コンテナビルド時に `--features otel` で指定。詳細は [9.1 ログ・トレース機能](#91-ログトレース機能) 参照。
 
 ## 15. コードレビュー基準
 
@@ -712,6 +744,8 @@ otel = [...]  # OpenTelemetry 対応（コンテナ環境向け）
   - [assert_cmd Documentation](https://docs.rs/assert_cmd/) - CLI テスト
   - [OpenTelemetry Rust](https://docs.rs/opentelemetry/) - 分散トレーシング
   - [tracing-opentelemetry](https://docs.rs/tracing-opentelemetry/) - tracing → OTel ブリッジ
+  - [opentelemetry-appender-tracing](https://docs.rs/opentelemetry-appender-tracing/) - tracing → OTel logs ブリッジ
+  - [opentelemetry-semantic-conventions](https://docs.rs/opentelemetry-semantic-conventions/) - OTel 標準属性定数
 
 - 開発環境・ツール
   - [mise Documentation](https://mise.jdx.dev/) - ツール管理 & タスクランナー
