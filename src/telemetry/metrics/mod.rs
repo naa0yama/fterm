@@ -104,6 +104,7 @@ mod tests {
         InMemoryMetricExporter, PeriodicReader, SdkMeterProvider,
         data::{AggregatedMetrics, MetricData},
     };
+    use serial_test::serial;
 
     use super::*;
 
@@ -128,6 +129,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn record_command_duration_adds_histogram_data_point() {
         // Arrange
         let (provider, exporter) = test_provider();
@@ -153,6 +155,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn record_command_error_increments_counter() {
         // Arrange
         let (provider, exporter) = test_provider();
