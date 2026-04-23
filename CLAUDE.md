@@ -44,6 +44,8 @@ All tasks use `mise run <task>`:
 | O2 (stop)             | `mise run o2:stop`            |
 | CodeQL (install)      | `mise run codeql:install`     |
 | CodeQL (analyze)      | `mise run codeql`             |
+| SSH test setup        | `mise run ssh:setup`          |
+| sshd (test)           | `mise run sshd`               |
 
 ## Commit Convention
 
