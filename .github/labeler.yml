@@ -1,25 +1,24 @@
 ---
 # Ref: https://github.com/actions/labeler/tree/main#pull-request-labeler
 
+core:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "Dockerfile*"
+
 github_actions:
   - changed-files:
       - any-glob-to-any-file: ".github/**"
-
-fish:
-  - changed-files:
-      - any-glob-to-any-file: "completions/**"
-      - any-glob-to-any-file: "conf.d/**"
-      - any-glob-to-any-file: "functions/**"
-
-MSYS2:
-  - changed-files:
-      - any-glob-to-any-file: "skel/**"
 
 documentation:
   - changed-files:
       - any-glob-to-any-file:
           - "docs/**"
           - "README.md"
+
+tests:
+  - changed-files:
+      - any-glob-to-any-file: "tests/**"
 
 renovate:
   - changed-files:

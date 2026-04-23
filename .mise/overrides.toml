@@ -1,0 +1,44 @@
+# Project-specific task overrides.
+# Tasks defined here take precedence over tasks.toml because this file
+# appears LAST in the task_config.includes array in mise.toml.
+
+["ssh:setup"]
+description = "Generate SSH test key pair, place fixtures in tmp/.ssh/, and register to authorized_keys (idempotent)"
+run = """
+set -euo pipefail
+SSH_DIR="/app/tmp/.ssh"
+SSH_SKEL="/app/.devcontainer/ssh-skel"
+if [ ! -f "$SSH_DIR/conf.d/keys/private/id_ed25519.pem" ]; then
+    mkdir -p "$SSH_DIR/conf.d/keys/private" "$SSH_DIR/conf.d/keys/public"
+    cp -r "$SSH_SKEL/." "$SSH_DIR/"
+    ssh-keygen -t ed25519 -N "" -f "$SSH_DIR/conf.d/keys/private/id_ed25519.pem" -C "fterm-test" -q
+    cp "$SSH_DIR/conf.d/keys/private/id_ed25519.pem.pub" "$SSH_DIR/conf.d/keys/public/id_ed25519.pem"
+    echo "SSH test fixtures created at $SSH_DIR"
+fi
+mkdir -p ~/.ssh
+chmod 0700 ~/.ssh
+touch ~/.ssh/authorized_keys
+chmod 0600 ~/.ssh/authorized_keys
+cat "$SSH_DIR/conf.d/keys/private/id_ed25519.pem.pub" > ~/.ssh/authorized_keys
+echo "authorized_keys updated."
+
+# ssh_config resolves relative Include paths from ~/.ssh/, not from the config
+# file location, so ~/.ssh/conf.d must point to the test config directory.
+ln -sf "$SSH_DIR/conf.d" ~/.ssh/conf.d
+echo "~/.ssh/conf.d -> $SSH_DIR/conf.d symlink created."
+"""
+
+[sshd]
+description = "Start sshd for localhost SSH testing (runs ssh:setup first)"
+depends = ["ssh:setup"]
+run = """
+set -euo pipefail
+if pgrep -x sshd > /dev/null 2>&1; then
+    echo "sshd is already running."
+    exit 0
+fi
+sudo mkdir -p /run/sshd
+sudo ssh-keygen -A -q
+sudo /usr/sbin/sshd
+echo "sshd started."
+"""

@@ -14,11 +14,11 @@ SSH Agent Forwarding を使ってリモートサーバーに接続し、tmux 内
 
 ## 解決策: 3 層アプローチ
 
-| 層  | ファイル           | 役割                                                                 |
-| --- | ------------------ | -------------------------------------------------------------------- |
-| 1   | `~/.ssh/rc`        | `ln -sf "$SSH_AUTH_SOCK" ~/.ssh/agent.sock` で安定シンボリンクを作成 |
-| 2   | シェルプロファイル | `SSH_AUTH_SOCK=~/.ssh/agent.sock` を export                          |
-| 3   | `.tmux.conf`       | `update-environment` から `SSH_AUTH_SOCK` を除外                     |
+| 層 | ファイル           | 役割                                                                 |
+| -- | ------------------ | -------------------------------------------------------------------- |
+| 1  | `~/.ssh/rc`        | `ln -sf "$SSH_AUTH_SOCK" ~/.ssh/agent.sock` で安定シンボリンクを作成 |
+| 2  | シェルプロファイル | `SSH_AUTH_SOCK=~/.ssh/agent.sock` を export                          |
+| 3  | `.tmux.conf`       | `update-environment` から `SSH_AUTH_SOCK` を除外                     |
 
 ### 層 1: `~/.ssh/rc`
 
@@ -68,7 +68,6 @@ fterm の `skel/.tmux.conf` に含まれている。tmux のデフォルト `upd
 if-shell "test -z \"$MSYSTEM\"" {
     set-option -g update-environment "DISPLAY KRB5CCNAME SSH_ASKPASS SSH_AGENT_PID SSH_CONNECTION WINDOWID XAUTHORITY"
 }
-
 ```
 
 ## fterm の立場
