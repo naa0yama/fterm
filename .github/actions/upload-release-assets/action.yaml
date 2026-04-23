@@ -7,7 +7,7 @@ inputs:
     required: true
   github_token:
     description: "GitHub token"
-    required: false
+    required: true
     default: ${{ github.token }}
 
 outputs:

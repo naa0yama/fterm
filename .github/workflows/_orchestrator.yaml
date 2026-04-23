@@ -122,6 +122,9 @@ jobs:
     permissions:
       contents: read # Required to checkout the repository for dependency audit
     steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/act-audit
 
   container:
@@ -136,6 +139,9 @@ jobs:
       contents: read # Required to checkout the repository
       packages: write # Required to push container images to registry
     steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/act-prebuild-container
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -151,6 +157,9 @@ jobs:
     permissions:
       contents: read # Required to checkout the repository
     steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/act-docs-ci
 
   codeql:
@@ -165,6 +174,9 @@ jobs:
       contents: read # Required to checkout the repository for CodeQL analysis
       security-events: write # Required to upload CodeQL analysis results
     steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/act-codeql
 
   actionlint:
@@ -179,6 +191,9 @@ jobs:
       contents: read # Required to checkout the repository
       security-events: write # Required to upload SARIF reports
     steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/act-actionlint
 
   ci-gate:
