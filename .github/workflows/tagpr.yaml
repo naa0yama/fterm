@@ -19,8 +19,11 @@ concurrency:
 jobs:
   tagpr:
     name: tagpr
+    env:
+      MISE_ENV: tagpr
     if: >-
       github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
       startsWith(github.event.pull_request.head.ref, 'tagpr-from-')
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -29,7 +32,7 @@ jobs:
     permissions:
       contents: write # Required to create tags and update files
       pull-requests: write # Required to create and update pull requests
-      issues: write # Required to manage release issues
+      issues: read # Required to read release-related issues (tagpr official recommendation)
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -37,78 +40,121 @@ jobs:
           persist-credentials: false
 
       - name: Cache dprint plugins
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.cache/dprint
           key: dprint-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('dprint.jsonc') }}
           restore-keys: |
             dprint-v1-${{ runner.os }}-${{ runner.arch }}-
 
-      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+      - uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
         with:
-          install_args: dprint
+          install_args: dprint rust
+          # renovate: datasource=github-releases packageName=jdx/mise versioning=calver:YYYY.M.D automerge=true
+          version: 2026.4.18
         env:
           GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Wait for GitHub commit-to-PR index to settle
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          # tagpr v1.18.3 has a built-in 6-second retry window for
+          # ListPullRequestsWithCommit, which is insufficient for this
+          # repo's squash-merge workflow. Poll up to 120s so that
+          # latestPullRequest() succeeds on its first attempt.
+          # Remove this step once Songmu/tagpr extends its retry window.
+          # ref: https://github.com/Songmu/tagpr/issues/330
+          for i in $(seq 1 24); do
+            count=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/pulls" \
+              --jq 'length' 2>/dev/null || echo 0)
+            if [ "${count}" -gt 0 ]; then
+              echo "commit-to-PR index ready after ${i} attempt(s)"
+              # exit 0 ends only this run: shell; the next step still runs.
+              exit 0
+            fi
+            echo "attempt ${i}/24: index not ready, sleeping 5s"
+            sleep 5
+          done
+          # HEAD may legitimately have no PR (direct push, workflow re-run).
+          # Let tagpr's own logic decide rather than failing the job.
+          echo "::warning::commit-to-PR index did not populate within 120s; proceeding"
 
       - id: tagpr
-        uses: Songmu/tagpr@b3fb89424646b06c8aa460f50307c60b6a541425 # v1.17.1
+        uses: Songmu/tagpr@9bbb945b2fb025126186661e27d55485e3fc6df6 # v1.18.3
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
-      - name: Add CI note to release PR
-        if: steps.tagpr.outputs.tag == ''
+      - name: Parse tagpr pull request output
+        id: tagpr-pr
+        if: steps.tagpr.outputs.pull_request != ''
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          PR_NUMBER=$(gh pr list --state open --json number,headRefName \
-            --jq '[.[] | select(.headRefName | startswith("tagpr-from-"))][0].number // empty')
-          if [ -z "$PR_NUMBER" ]; then
-            echo "No tagpr release PR found, skipping"
-            exit 0
-          fi
-          MARKER="<!-- tagpr-ci-note -->"
-          if gh pr view "$PR_NUMBER" --json comments \
-              --jq '.comments[].body' | grep -qF "$MARKER"; then
-            echo "CI note comment already exists on PR #${PR_NUMBER}, skipping"
-            exit 0
-          fi
-          gh pr comment "$PR_NUMBER" --body "${MARKER}
-          > [!TIP]
-          > この Pull Request は \`GITHUB_TOKEN\` で作成されているため、CI が自動で起動しません。
-          > Pull Request を一度 \`Close pull request\` して \`Reopen pull request\` すると CI が起動します。
-
-          > [!NOTE]
-          > バージョンバンプはデフォルトで **patch** です。変更したい場合はこの PR に以下のラベルを付けてください:
-          > | Label | Bump | Example |
-          > |-------|------|---------|
-          > | \`tagpr:minor\` | minor | \`0.1.4\` → \`0.2.0\` |
-          > | \`tagpr:major\` | major | \`0.1.4\` → \`1.0.0\` |"
+          PR_JSON: ${{ steps.tagpr.outputs.pull_request }}
+        with:
+          script: |
+            const pr = JSON.parse(process.env.PR_JSON);
+            core.setOutput('branch', pr.head.ref);
+            core.setOutput('number', String(pr.number));
 
       - name: Format CHANGELOG.md
-        if: steps.tagpr.outputs.tag == ''
-        env:
-          GH_TOKEN: ${{ github.token }}
+        id: fmt-changelog
+        if: steps.tagpr.outputs.tag == '' && steps.tagpr-pr.outputs.branch != ''
         run: |
-          PR_BRANCH=$(gh pr list --state open --json headRefName \
-            --jq '[.[] | select(.headRefName | startswith("tagpr-from-"))][0].headRefName // empty')
-          if [ -z "$PR_BRANCH" ]; then
-            echo "No tagpr release PR found, skipping"
-            exit 0
+          git checkout -- .
+          git clean -fd
+          git fetch origin "$BRANCH"
+          git checkout "$BRANCH"
+          dprint fmt CHANGELOG.md
+          if git diff --quiet CHANGELOG.md; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
-          git fetch origin "${PR_BRANCH}"
-          git checkout -f "${PR_BRANCH}"
-          if [ -f CHANGELOG.md ]; then
-            dprint fmt CHANGELOG.md
-            if ! git diff --quiet CHANGELOG.md; then
-              FILE_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/contents/CHANGELOG.md?ref=${PR_BRANCH}" --jq '.sha')
-              gh api "repos/${GITHUB_REPOSITORY}/contents/CHANGELOG.md" \
-                --method PUT \
-                -f message="[tagpr] format CHANGELOG.md" \
-                -f content="$(base64 -w 0 CHANGELOG.md)" \
-                -f sha="${FILE_SHA}" \
-                -f branch="${PR_BRANCH}"
-            fi
-          fi
+        env:
+          BRANCH: ${{ steps.tagpr-pr.outputs.branch }}
+
+      - name: Commit formatted CHANGELOG.md
+        if: steps.fmt-changelog.outputs.changed == 'true'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          BRANCH: ${{ steps.tagpr-pr.outputs.branch }}
+        with:
+          script: |
+            const fs = require('fs');
+            const branch = process.env.BRANCH;
+            const content = fs.readFileSync('CHANGELOG.md');
+            const encoded = content.toString('base64');
+
+            const { data: ref } = await github.rest.git.getRef({
+              ...context.repo,
+              ref: `heads/${branch}`,
+            });
+
+            await github.graphql(`
+              mutation($input: CreateCommitOnBranchInput!) {
+                createCommitOnBranch(input: $input) {
+                  commit { oid }
+                }
+              }
+            `, {
+              input: {
+                branch: {
+                  repositoryNameWithOwner: `${context.repo.owner}/${context.repo.repo}`,
+                  branchName: branch,
+                },
+                expectedHeadOid: ref.object.sha,
+                message: { headline: '[tagpr] format CHANGELOG.md with dprint' },
+                fileChanges: {
+                  additions: [{
+                    path: 'CHANGELOG.md',
+                    contents: encoded,
+                  }],
+                },
+              },
+            });
 
   release:
     name: Build and Release
