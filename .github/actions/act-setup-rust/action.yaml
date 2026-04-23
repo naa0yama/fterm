@@ -25,13 +25,13 @@ runs:
       run: echo "RUSTC_WRAPPER=sccache" >> "$GITHUB_ENV"
 
     - name: Cache rustup
-      uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
         path: |
           ~/.rustup/settings.toml
           ~/.rustup/toolchains/1.*
         key: v0-rust-rustup-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/rust-toolchain.toml') }}
 
-    - uses: actions-rust-lang/setup-rust-toolchain@a0b538fa0b742a6aa35d6e2c169b4bd06d225a98 # v1.15.3
+    - uses: actions-rust-lang/setup-rust-toolchain@2b1f5e9b395427c92ee4e3331786ca3c37afe2d7 # v1.16.0
       with:
         cache-shared-key: cargo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/Cargo.lock') }}

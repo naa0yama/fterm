@@ -7,12 +7,27 @@ changelog:
 
   categories:
     - title: Features 🎉
-      labels: ["enhancement"]
+      labels:
+        - enhancement
+        - feature
     - title: Bug Fixes 🐌
-      labels: ["bug"]
+      labels:
+        - bug
+        - fix
     - title: Documentation 🗒️
-      labels: ["documentation"]
-    - title: Dependency Updates 👒
-      labels: ["renovate"]
+      labels:
+        - documentation
+    - title: "Dependency Updates 📦"
+      labels:
+        - manager:cargo
+    - title: "Development Environment 🔧"
+      labels:
+        - manager:mise
+        - manager:github-actions
+        - manager:dockerfile
+        - manager:docker-compose
+        - manager:regex
+        - github-actions
+        - renovate-config
     - title: Other Changes
       labels: ["*"]

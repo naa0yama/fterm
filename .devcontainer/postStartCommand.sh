@@ -35,40 +35,40 @@ else
 	echo "All mounts validated successfully!"
 fi
 
+# mise bootstrap: install or upgrade to pinned version
+export PATH="$HOME/.local/bin:$PATH"
+## renovate: datasource=github-releases packageName=jdx/mise versioning=calver:YYYY.M.D automerge=true
+MISE_PINNED_VERSION="2026.4.18"
+
+installed_version=""
+if command -v mise > /dev/null 2>&1; then
+	installed_version="$(mise --version | awk '{print $1}')"
+fi
+
+if [ "$installed_version" != "$MISE_PINNED_VERSION" ]; then
+	echo "Installing mise v${MISE_PINNED_VERSION} (installed: ${installed_version:-none})..."
+	MISE_VERSION="v${MISE_PINNED_VERSION}" \
+		curl -fsSL --retry 3 --retry-delay 2 --retry-connrefused \
+		https://mise.jdx.dev/install.sh | sh
+fi
+mise --version
+
 chmod +x .githooks/*
-mise trust /app/mise.toml
+git config --local --unset core.hookspath || true
+mise trust -y /app
+mise settings add trusted_config_paths /app
 mise install
 
-# Install OpenObserve
-echo "Installing OpenObserve..."
-mise run o2:install
+echo "Installing Claude Code and OpenObserve in parallel..."
+mise run claudecode:install &
+mise run o2:install &
+wait
 
-# 1. authorized_keys setup
-rm -rf ~/.ssh/id_ed25519 ~/.ssh/id_ed25519.pub
-mkdir -p ~/.ssh
+echo "Starting OpenObserve..."
+mise run o2
 
-chmod 0700 ~/.ssh
-rm -f ~/.ssh/id_ed25519 ~/.ssh/id_ed25519.pub
-ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N "" -C "" -q
+# gh-sync:keep-start
+# Project-specific dependencies are listed here.
+mise run sshd
 
-touch ~/.ssh/authorized_keys
-chmod 0600 ~/.ssh/authorized_keys
-cat ~/.ssh/id_ed25519.pub > ~/.ssh/authorized_keys
-
-mv -v ~/.ssh/id_ed25519			/app/tests/.ssh/conf.d/keys/private/id_ed25519.pem
-mv -v ~/.ssh/id_ed25519.pub		/app/tests/.ssh/conf.d/keys/public/id_ed25519.pem
-rm -rf ~/.ssh/id_ed25519		~/.ssh/id_ed25519.pub
-
-# 2. Link test SSH conf.d into ~/.ssh so OpenSSH resolves Include paths correctly
-#    ssh -F /app/tests/.ssh/config resolves relative Includes from ~/.ssh/,
-#    so ~/.ssh/conf.d must exist and point to the test config directory.
-ln -sf /app/tests/.ssh/conf.d ~/.ssh/conf.d
-
-# 3. sshd privilege separation directory
-sudo mkdir -p /run/sshd
-
-# 4. Generate host keys if missing
-sudo ssh-keygen -A
-
-# 5. Start sshd
-sudo /usr/sbin/sshd
+# gh-sync:keep-end
