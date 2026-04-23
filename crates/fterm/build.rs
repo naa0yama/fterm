@@ -14,9 +14,9 @@ fn capture_cmd(program: &str, args: &[&str]) -> String {
 }
 
 fn main() {
-    println!("cargo:rerun-if-changed=.git/HEAD");
-    println!("cargo:rerun-if-changed=.git/refs/");
-    println!("cargo:rerun-if-changed=.git/packed-refs");
+    println!("cargo:rerun-if-changed=../../.git/HEAD");
+    println!("cargo:rerun-if-changed=../../.git/refs/");
+    println!("cargo:rerun-if-changed=../../.git/packed-refs");
 
     let git_hash = capture_cmd("git", &["rev-parse", "--short", "HEAD"]);
     let rustc_version = capture_cmd("rustc", &["--version"]);

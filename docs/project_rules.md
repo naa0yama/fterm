@@ -189,55 +189,66 @@ fn process<'a>() -> impl Future<Output = Result<()>> + Send + 'a {
 
 ## 4. プロジェクト構造
 
-### 4.1 基本構造(CLIプロジェクト)
+### 4.1 基本構造(Cargo workspace CLIプロジェクト)
 
 ```
 project-name/
 ├── .cargo/
 │   └── config.toml                     # Cargo設定
 ├── .devcontainer/                      # 開発環境設定
+│   └── ssh-skel/                       # SSHテスト用スケルトン設定
 ├── .github/                            # GitHub Actions & 設定
-│   ├── actions/
-│   │   ├── act-setup-rust/             # Rust のセットアップ
-│   │   └── create-release/             # Release 作成 action
+│   ├── actions/                        # 再利用可能 composite actions
+│   │   ├── act-actionlint/             # actionlint lint action
+│   │   ├── act-audit/                  # cargo audit action
+│   │   ├── act-cleanup/                # Cache/コンテナ整理 action
+│   │   ├── act-codeql/                 # CodeQL 解析 action
+│   │   ├── act-docs-ci/                # ドキュメント CI action
+│   │   ├── act-prebuild-container/     # コンテナ事前ビルド action
+│   │   ├── act-setup-rust/             # Rust セットアップ action
+│   │   ├── create-release/             # Release 作成 action
+│   │   └── upload-release-assets/      # Release アセットアップロード action
 │   ├── workflows/                      # CI/CD ワークフロー
-│   │   ├── audit.yaml                  # cargo audit の定期実行
-│   │   ├── ci.yaml                     # CI pipeline
+│   │   ├── _orchestrator.yaml          # オーケストレーター (composite actions 呼び出し)
 │   │   ├── cleanup.yaml                # Cache/ untag container
-│   │   ├── pr-labeler.yaml
-│   │   ├── prebuild-container.yaml
-│   │   ├── release-build.yaml          # Release の Build workflow
-│   │   ├── release.yaml                # Release oneshot 用 workflow
-│   │   └── tagpr.yaml
+│   │   ├── miri.yaml                   # Miri UB 検出
+│   │   ├── pr-labeler.yaml             # PR ラベル自動付与
+│   │   ├── release.yaml                # Release ワークフロー
+│   │   ├── rust-ci.yaml                # Rust CI pipeline
+│   │   └── tagpr.yaml                  # タグ & リリース PR 作成
 │   ├── labeler.yml
 │   └── release.yml
 ├── .githooks/                          # Git hooks (mise run 連携)
 │   ├── commit-msg                      # Conventional Commits 検証
 │   ├── pre-commit                      # コミット前チェック
 │   └── pre-push                        # プッシュ前チェック
+├── .mise/                              # mise タスク設定
+│   ├── tasks.toml                      # 共通タスク定義 (テンプレート管理)
+│   └── overrides.toml                  # プロジェクト固有タスクオーバーライド
 ├── .vscode/                            # VS Code設定
 │   ├── launch.json                     # デバッグ設定
 │   └── settings.json                   # ワークスペース設定
+├── ast-rules/                          # ast-grep プロジェクトルール
+├── crates/                             # Cargo workspace メンバー
+│   └── fterm/                          # fterm クレート
+│       ├── src/                        # ソースコード
+│       │   ├── main.rs                 # CLIエントリーポイント
+│       │   └── ...                     # 各機能モジュール
+│       ├── tests/                      # 統合テスト
+│       │   └── integration_test.rs
+│       ├── build.rs                    # ビルドスクリプト
+│       └── Cargo.toml                  # クレート設定と依存関係
 ├── docs/                               # ドキュメント
 │   └── project_rules.md                # プロジェクトルール
-├── src/                                # ソースコード
-│   ├── main.rs                         # CLIエントリーポイント
-│   ├── libs.rs                         # ライブラリモジュール定義
-│   └── libs/                           # ビジネスロジック
-│       └── hello.rs                    # 個別機能モジュール
-├── tests/                              # 統合テスト
-│   └── integration_test.rs
 ├── .editorconfig                       # エディター設定
 ├── .gitignore                          # Git除外設定
 ├── .octocov.yml                        # カバレッジレポート設定
 ├── .tagpr                              # タグ&リリース設定
-├── ast-rules/                          # ast-grep プロジェクトルール
-├── build.rs                            # ビルドスクリプト
 ├── Cargo.lock                          # 依存関係ロックファイル
-├── Cargo.toml                          # プロジェクト設定と依存関係
+├── Cargo.toml                          # Workspace ルート設定と共通依存関係
 ├── Dockerfile                          # devcontainer 環境ファイル
 ├── dprint.jsonc                        # フォーマッター設定
-├── mise.toml                           # ツール管理 & タスクランナー
+├── mise.toml                           # ツール管理 & タスクランナー設定
 ├── LICENSE                             # ライセンスファイル
 ├── README.md                           # プロジェクト説明
 ├── renovate.json                       # 依存関係自動更新
@@ -293,7 +304,7 @@ mod tests {
 - `predicates` で出力内容を検証
 
 ```rust
-// tests/integration_test.rs
+// crates/fterm/tests/integration_test.rs
 use assert_cmd::Command;
 use predicates::prelude::*;
 
@@ -523,7 +534,7 @@ tracing::info!("Process completed successfully");
 **モジュール構成:**
 
 ```
-src/telemetry/
+crates/fterm/src/telemetry/
 ├── mod.rs            # init_otel / init_subscriber / shutdown_otel
 ├── conventions.rs    # fterm.* メトリクス名・属性キー定数
 └── metrics/
@@ -539,7 +550,7 @@ src/telemetry/
 - **Metrics**: `SdkMeterProvider` + periodic `MetricExporter`。`Meters` 構造体が
   `fterm.command.duration` (Histogram) と `fterm.command.errors` (Counter) を記録。
 
-**命名規約 (`src/telemetry/conventions.rs`):**
+**命名規約 (`crates/fterm/src/telemetry/conventions.rs`):**
 
 | 定数                       | 値                       | 説明                          |
 | -------------------------- | ------------------------ | ----------------------------- |
