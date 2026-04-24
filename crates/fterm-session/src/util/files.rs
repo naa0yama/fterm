@@ -184,7 +184,7 @@ mod tests {
     use fterm_core::runner::CommandOutput;
     use fterm_core::runner::MockCommandRunner;
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn list_logs_finds_log_and_gz() {
         // Arrange
@@ -206,7 +206,7 @@ mod tests {
         assert!(names.contains(&String::from("app.log.gz")));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn list_logs_returns_empty_for_missing_dir() {
         // Act
@@ -216,7 +216,7 @@ mod tests {
         assert!(files.is_empty());
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn list_logs_finds_in_subdirectories() {
         // Arrange
@@ -232,7 +232,7 @@ mod tests {
         assert_eq!(files.len(), 1);
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn compress_logs_compresses_and_removes_original() {
         // Arrange
@@ -254,7 +254,7 @@ mod tests {
         assert_eq!(content, "hello world\n");
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn compress_logs_skips_nonexistent_dir() {
         // Arrange
@@ -264,7 +264,7 @@ mod tests {
         assert!(compress_logs(&runner, Path::new("/nonexistent")).is_ok());
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn compress_logs_skips_already_compressed() {
         // Arrange
@@ -281,7 +281,7 @@ mod tests {
         assert_eq!(content, "fake gz data");
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn compress_logs_skips_active_log_reported_by_tmux() {
         // Arrange
@@ -310,7 +310,7 @@ mod tests {
         assert!(dir.path().join("old.log.gz").exists());
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn read_gz_head_reads_n_lines() {
         // Arrange
@@ -330,7 +330,7 @@ mod tests {
         assert_eq!(result, "line1\nline2\nline3\n");
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn read_head_reads_n_lines() {
         // Arrange
@@ -345,7 +345,7 @@ mod tests {
         assert_eq!(result, "line1\nline2\n");
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn read_head_handles_short_file() {
         // Arrange

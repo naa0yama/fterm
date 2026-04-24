@@ -29,7 +29,7 @@ mod tests {
     use super::*;
 
     #[test]
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[serial(env)]
     fn returns_env_value() {
         // Arrange
@@ -46,7 +46,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[serial(env)]
     fn falls_back_to_default() {
         // Arrange

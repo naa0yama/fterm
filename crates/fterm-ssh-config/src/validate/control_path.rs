@@ -100,7 +100,7 @@ mod tests {
         assert!(msgs.is_empty());
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn missing_directory_returns_warn() {
         // Act
@@ -134,9 +134,8 @@ mod tests {
         assert!(msgs.is_empty());
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
-    #[cfg(not(miri))]
     #[serial(env)]
     fn tilde_path_expands_correctly() {
         // Arrange
@@ -158,7 +157,7 @@ mod tests {
         assert!(msgs.is_empty(), "expected no messages: {msgs:?}");
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn existing_directory_no_warn() {
         // Arrange

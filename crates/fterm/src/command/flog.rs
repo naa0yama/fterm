@@ -101,6 +101,7 @@ fn build_log_items(log_files: &[PathBuf]) -> Vec<String> {
 /// - File mode (default): browse log files with preview
 /// - Search mode (Ctrl-S): search content via `rg --search-zip`
 // NOTEST(infra): requires interactive fzf terminal session
+#[cfg_attr(coverage_nightly, coverage(off))]
 fn run_fzf_log_selection(items: &[String], log_dir: &str) -> Result<Option<String>> {
     let preview_cmd = "f={}; if [[ $f == *.gz ]]; then zcat \"$f\" 2>/dev/null | head --lines=500; else head --lines=500 \"$f\" 2>/dev/null; fi";
 
@@ -230,7 +231,7 @@ mod tests {
         result
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     #[serial(env)]
     fn run_inner_no_log_dir_returns_error_1() {
@@ -249,7 +250,7 @@ mod tests {
         assert!(!missing.exists(), "directory should NOT have been created");
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     #[serial(env)]
     fn run_inner_empty_log_dir_returns_1() {
@@ -266,7 +267,7 @@ mod tests {
         assert_eq!(result.unwrap(), 1);
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     #[serial(env)]
     fn run_inner_selection_returns_less_command_for_log() {
@@ -285,7 +286,7 @@ mod tests {
         assert_eq!(result.unwrap(), 0);
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     #[serial(env)]
     fn run_inner_selection_cancelled_returns_1() {
@@ -304,7 +305,7 @@ mod tests {
         assert_eq!(result.unwrap(), 1);
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     #[serial(env)]
     fn run_inner_selection_empty_string_returns_1() {
@@ -387,7 +388,7 @@ mod tests {
         assert_eq!(cmd, "less '/logs/test.log'");
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     #[serial(env)]
     fn run_inner_selection_returns_zcat_for_gz() {
@@ -406,7 +407,7 @@ mod tests {
         assert_eq!(result.unwrap(), 0);
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     #[serial(env)]
     fn run_inner_selection_from_search_result_log() {
@@ -427,7 +428,7 @@ mod tests {
         assert_eq!(result.unwrap(), 0);
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     #[serial(env)]
     fn run_inner_selection_from_search_result_gz() {
@@ -446,7 +447,7 @@ mod tests {
         assert_eq!(result.unwrap(), 0);
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     #[serial(env)]
     fn run_inner_select_fn_error_propagates() {

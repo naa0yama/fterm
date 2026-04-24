@@ -55,7 +55,7 @@ mod tests {
 
     use super::*;
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn extracts_simple_hosts() {
         // Arrange
@@ -74,7 +74,7 @@ mod tests {
         assert_eq!(result, vec!["alpha", "beta"]);
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn filters_wildcard_hosts() {
         // Arrange
@@ -89,7 +89,7 @@ mod tests {
         assert_eq!(result, vec!["real"]);
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn handles_multiple_hosts_per_line() {
         // Arrange
@@ -104,7 +104,7 @@ mod tests {
         assert_eq!(result, vec!["bar", "baz", "foo"]);
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn deduplicates_across_files() {
         // Arrange
@@ -121,7 +121,7 @@ mod tests {
         assert_eq!(result, vec!["shared", "unique1", "unique2"]);
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn extracts_lowercase_host_directive() {
         // Arrange
@@ -136,7 +136,7 @@ mod tests {
         assert_eq!(result, vec!["lower-case"]);
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn extracts_mixed_case_host_directives() {
         // Arrange
@@ -155,7 +155,7 @@ mod tests {
         assert_eq!(result, vec!["lower", "upper"]);
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn returns_empty_for_no_hosts() {
         // Arrange

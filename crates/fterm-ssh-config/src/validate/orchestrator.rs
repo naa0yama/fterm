@@ -154,7 +154,7 @@ mod tests {
     // run_all_checks tests
     // -----------------------------------------------------------------------
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn run_all_checks_pass_syntax_no_hosts_returns_empty_messages() {
         // Arrange
@@ -182,7 +182,7 @@ mod tests {
         assert!(result.messages.is_empty());
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn run_all_checks_syntax_fail_returns_early_with_syntax_errors() {
         // Arrange

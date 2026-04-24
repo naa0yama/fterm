@@ -230,7 +230,7 @@ mod tests {
 
     // --- ssh_connect_banner ---
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn connect_banner_contains_header() {
         // Arrange
@@ -246,7 +246,7 @@ mod tests {
         assert!(banner.contains("fterm SSH Connected"));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn connect_banner_contains_config_name() {
         // Arrange & Act
@@ -263,7 +263,7 @@ mod tests {
         assert!(banner.contains("my-alias"));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn connect_banner_contains_target() {
         // Arrange & Act
@@ -279,7 +279,7 @@ mod tests {
         assert!(banner.contains("alice@server1:2222"));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn connect_banner_contains_log_path() {
         // Arrange & Act
@@ -295,7 +295,7 @@ mod tests {
         assert!(banner.contains("/var/log/fterm/session.log"));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn connect_banner_shows_ssh_details() {
         // Arrange
@@ -320,7 +320,7 @@ mod tests {
         assert!(banner.contains("ForwardAgent yes"));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn connect_banner_hides_ssh_details_when_empty() {
         // Arrange & Act
@@ -336,7 +336,7 @@ mod tests {
         assert!(!banner.contains("SSH Config:"));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn connect_banner_shows_agent_keys() {
         // Arrange
@@ -361,7 +361,7 @@ mod tests {
         assert!(banner.contains("SHA256:def456 deploy-key"));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn connect_banner_hides_agent_keys_when_empty() {
         // Arrange & Act
@@ -377,7 +377,7 @@ mod tests {
         assert!(!banner.contains("Agent Keys:"));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn connect_banner_contains_timestamp_label() {
         // Arrange & Act
@@ -393,7 +393,7 @@ mod tests {
         assert!(banner.contains("Timestamp:"));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn connect_banner_uses_ansi_colors() {
         // Arrange & Act
@@ -413,7 +413,7 @@ mod tests {
 
     // --- ssh_disconnect_banner ---
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn disconnect_banner_contains_header() {
         // Arrange & Act
@@ -423,7 +423,7 @@ mod tests {
         assert!(banner.contains("fterm SSH Disconnected"));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn disconnect_banner_contains_target() {
         // Arrange & Act
@@ -433,7 +433,7 @@ mod tests {
         assert!(banner.contains("alice@server1"));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn disconnect_banner_contains_duration() {
         // Arrange & Act
@@ -444,7 +444,7 @@ mod tests {
         assert!(banner.contains("3d 2h15m0s"));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn disconnect_banner_contains_timestamp_label() {
         // Arrange & Act
@@ -454,7 +454,7 @@ mod tests {
         assert!(banner.contains("Timestamp:"));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn disconnect_banner_uses_ansi_colors() {
         // Arrange & Act
@@ -467,7 +467,7 @@ mod tests {
 
     // --- scp_result_banner ---
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn scp_banner_success() {
         // Arrange
@@ -481,7 +481,7 @@ mod tests {
         assert!(banner.contains("\x1b[32m")); // green
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn scp_banner_failure() {
         // Arrange
@@ -495,7 +495,7 @@ mod tests {
         assert!(banner.contains("\x1b[31m")); // red
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn scp_banner_contains_header() {
         // Arrange & Act
@@ -505,7 +505,7 @@ mod tests {
         assert!(banner.contains("fterm SCP Result"));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn scp_banner_lists_hosts() {
         // Arrange
@@ -521,7 +521,7 @@ mod tests {
         assert!(banner.contains("charlie"));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn scp_banner_hides_hosts_when_empty() {
         // Arrange & Act
@@ -531,7 +531,7 @@ mod tests {
         assert!(!banner.contains("Hosts:"));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn scp_banner_success_no_red() {
         // Arrange & Act
@@ -541,7 +541,7 @@ mod tests {
         assert!(!banner.contains("\x1b[31m"));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn scp_banner_failure_no_green_in_header() {
         // Arrange & Act
@@ -553,7 +553,7 @@ mod tests {
 
     // --- scp_connect_banner ---
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn scp_connect_banner_contains_header() {
         // Arrange & Act
@@ -563,7 +563,7 @@ mod tests {
         assert!(banner.contains("fterm SCP Transfer"));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn scp_connect_banner_contains_target() {
         // Arrange & Act
@@ -573,7 +573,7 @@ mod tests {
         assert!(banner.contains("host1_host2"));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn scp_connect_banner_contains_log_path() {
         // Arrange & Act
@@ -583,7 +583,7 @@ mod tests {
         assert!(banner.contains("/var/log/scp.log"));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn scp_connect_banner_shows_ssh_details() {
         // Arrange
@@ -604,7 +604,7 @@ mod tests {
         assert!(banner.contains("ProxyJump bastion"));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn scp_connect_banner_shows_agent_keys() {
         // Arrange

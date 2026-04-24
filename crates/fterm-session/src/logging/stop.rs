@@ -172,7 +172,7 @@ mod tests {
 
     use super::*;
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn stops_pipe_appends_marker_and_compresses() {
         // Arrange
@@ -191,7 +191,7 @@ mod tests {
         assert!(content.contains("=== Session Disconnected ==="));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn returns_error_when_pipe_pane_stop_fails() {
         // Arrange
@@ -216,7 +216,7 @@ mod tests {
         assert!(err_msg.contains("tmux pipe-pane (stop) exited with code 1"));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn returns_error_when_gzip_fails() {
         // Arrange
@@ -240,7 +240,7 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn missing_log_file_skips_gracefully() {
         // Arrange
@@ -255,7 +255,7 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn disconnect_marker_has_timestamp_format() {
         // Arrange
@@ -277,7 +277,7 @@ mod tests {
         assert!(content.contains("] === Session Disconnected ==="));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn unset_fterm_logging_failure_is_non_fatal() {
         // Arrange — pipe-pane stop succeeds, set-option -u fails (non-fatal)
@@ -303,7 +303,7 @@ mod tests {
         );
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn finalize_logging_cleanup_appends_cleanup_footer() {
         // Arrange

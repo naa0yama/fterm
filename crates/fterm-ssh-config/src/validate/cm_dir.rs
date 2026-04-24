@@ -65,7 +65,7 @@ mod tests {
 
     use super::*;
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn creates_cm_directory_returns_info_message() {
         // Arrange
@@ -82,7 +82,7 @@ mod tests {
         assert!(ssh_home.join("conf.d").join("cm").exists());
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn existing_cm_directory_returns_empty() {
         // Arrange
@@ -98,7 +98,7 @@ mod tests {
     }
 
     #[cfg(unix)]
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn read_only_parent_returns_error() {
         use std::os::unix::fs::PermissionsExt;
@@ -123,7 +123,7 @@ mod tests {
     }
 
     #[cfg(unix)]
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn created_directory_has_correct_permissions() {
         use std::os::unix::fs::PermissionsExt;

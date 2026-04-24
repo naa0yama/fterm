@@ -110,7 +110,7 @@ mod tests {
         assert_eq!(sanitize_line(""), "");
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn process_stream_strips_cr_progress() {
         // Simulate scp progress: "uploading\rdone" — only the final frame
@@ -131,7 +131,7 @@ mod tests {
         );
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn process_stream_single_line() {
         let input = b"hello\n";
@@ -145,7 +145,7 @@ mod tests {
         assert!(result.contains("] hello\n"));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn process_stream_multiple_lines() {
         let input = b"line1\nline2\nline3\n";
@@ -161,7 +161,7 @@ mod tests {
         assert!(lines[2].contains("] line3"));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn process_stream_strips_ansi() {
         let input = b"\x1b[31mred\x1b[0m text\n";
@@ -174,7 +174,7 @@ mod tests {
         assert!(!result.contains("\x1b["));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn process_stream_empty_input() {
         let input = b"";

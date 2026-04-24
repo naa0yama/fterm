@@ -36,6 +36,7 @@ pub fn expand_tilde(path: &str) -> PathBuf {
 /// Windows OpenSSH. Returns `None` when not on MSYS2 or if `USERPROFILE`
 /// is unset.
 // NOTEST(env): requires MSYSTEM env var and cygpath binary (MSYS2-only)
+#[cfg_attr(coverage_nightly, coverage(off))]
 #[must_use]
 pub fn msys2_home() -> Option<String> {
     if std::env::var("MSYSTEM").is_err() {
@@ -64,6 +65,7 @@ const WIN_SSH_DIRS: &[&str] = &[
 /// Searches known Windows OpenSSH directories for `{name}.exe`.
 /// Returns `None` if not on MSYS2 or no executable found.
 // NOTEST(env): requires MSYSTEM env var and Windows OpenSSH paths (MSYS2-only)
+#[cfg_attr(coverage_nightly, coverage(off))]
 #[must_use]
 pub fn resolve_win_ssh_command(name: &str) -> Option<String> {
     if std::env::var("MSYSTEM").is_err() {
@@ -88,6 +90,7 @@ pub fn resolve_win_ssh_command(name: &str) -> Option<String> {
 ///
 /// Returns an error if `cygpath` cannot be spawned on MSYS2.
 // NOTEST(env): MSYS2 branch requires cygpath; non-MSYS2 path is tested via existing tests
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub fn to_win_mixed(path: &Path) -> Result<String> {
     if std::env::var("MSYSTEM").is_ok() {
         let output = Command::new("cygpath")
@@ -112,7 +115,7 @@ mod tests {
     // -- resolve_home tests --
 
     #[test]
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[serial(env)]
     fn resolve_home_uses_home_by_default() {
         // Arrange
@@ -132,7 +135,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[serial(env)]
     fn resolve_home_prefers_userprofile_on_msys2() {
         // Arrange
@@ -157,7 +160,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[serial(env)]
     fn resolve_home_falls_back_to_home_on_msys2_without_userprofile() {
         // Arrange
@@ -181,7 +184,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[serial(env)]
     fn resolve_home_falls_back_to_root() {
         // Arrange
@@ -201,7 +204,7 @@ mod tests {
     // -- expand_tilde tests --
 
     #[test]
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[serial(env)]
     fn expands_tilde_to_home() {
         // Arrange
@@ -232,7 +235,7 @@ mod tests {
     // -- to_windows_path tests --
 
     #[test]
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[serial(env)]
     fn to_win_mixed_returns_as_is_without_msystem() {
         // Arrange
@@ -247,7 +250,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[serial(env)]
     fn expand_tilde_bare_tilde_returns_home() {
         // Arrange
@@ -267,7 +270,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[serial(env)]
     fn msys2_home_returns_none_without_msystem() {
         // Arrange
@@ -281,7 +284,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[serial(env)]
     fn resolve_win_ssh_command_returns_none_without_msystem() {
         // Arrange

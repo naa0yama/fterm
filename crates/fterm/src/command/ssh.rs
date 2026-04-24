@@ -406,7 +406,7 @@ mod tests {
         }
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn generate_log_path_contains_expected_parts() {
         // Arrange
@@ -456,7 +456,7 @@ mod tests {
 
     // -- setup_connection tests --
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn setup_connection_runs_without_error() {
         // Arrange
@@ -487,7 +487,7 @@ mod tests {
 
     // -- teardown_connection tests --
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn teardown_connection_runs_without_error() {
         // Arrange
@@ -512,7 +512,7 @@ mod tests {
     // -- pre_connect_checks tests --
 
     #[test]
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[serial(env)]
     fn pre_connect_checks_agent_unavailable_returns_exit_code_1() {
         // Arrange
@@ -539,9 +539,8 @@ mod tests {
         unsafe { env::remove_var("TMUX") };
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
-    #[cfg(not(miri))]
     #[serial(env)]
     fn pre_connect_checks_agent_available_passes() {
         // Arrange
@@ -599,9 +598,8 @@ mod tests {
         }
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
-    #[cfg(not(miri))]
     #[serial(env)]
     fn pre_connect_checks_with_identity_option_skips_agent_check() {
         // Arrange
@@ -664,9 +662,8 @@ mod tests {
 
     // -- run_validation tests --
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
-    #[cfg(not(miri))]
     #[serial(env)]
     fn run_validation_no_config_returns_none() {
         // Arrange
@@ -714,9 +711,8 @@ mod tests {
         }
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
-    #[cfg(not(miri))]
     #[serial(env)]
     fn run_validation_with_valid_config_returns_none() {
         // Arrange
@@ -776,9 +772,8 @@ mod tests {
         }
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
-    #[cfg(not(miri))]
     #[serial(env)]
     fn run_validation_with_errors_returns_some_1() {
         // Arrange
@@ -825,9 +820,8 @@ mod tests {
         assert_eq!(result, Some(1), "validation errors should return Some(1)");
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
-    #[cfg(not(miri))]
     #[serial(env)]
     fn run_validation_with_warnings_returns_none() {
         // Arrange
@@ -889,9 +883,8 @@ mod tests {
         );
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
-    #[cfg(not(miri))]
     #[serial(env)]
     fn pre_connect_checks_validation_errors_returns_1() {
         // Arrange
@@ -948,7 +941,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[serial(env)]
     fn pre_connect_checks_not_in_tmux_delegates() {
         // Arrange — TMUX is unset; mock tmux commands to simulate delegation
@@ -1004,7 +997,7 @@ mod tests {
         assert_eq!(result, Some(0));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn generate_log_path_uses_pane_pid() {
         // Arrange

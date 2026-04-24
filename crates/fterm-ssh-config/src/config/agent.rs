@@ -103,7 +103,7 @@ mod tests {
     use super::*;
 
     #[test]
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[serial(env)]
     fn matches_agent_key_to_identity_file() {
         // Arrange
@@ -158,7 +158,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[serial(env)]
     fn skips_unmatched_fingerprints() {
         // Arrange
@@ -181,7 +181,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[serial(env)]
     fn handles_multiple_identity_files() {
         // Arrange

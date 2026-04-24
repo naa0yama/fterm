@@ -179,7 +179,7 @@ mod tests {
     use fterm_core::runner::MockCommandRunner;
 
     #[test]
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[serial(env)]
     fn already_in_tmux_returns_action() {
         // Arrange
@@ -199,7 +199,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[serial(env)]
     fn delegates_when_session_exists() {
         // Arrange
@@ -240,7 +240,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[serial(env)]
     fn creates_session_when_missing() {
         // Arrange

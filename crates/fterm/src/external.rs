@@ -68,6 +68,7 @@ pub fn exec_with_config(command_name: &str, args: &[String], config_args: &[Stri
 ///
 /// Returns an error if the command cannot be spawned.
 // NOTEST(ffi): Unix exec() replaces the process; success path never returns
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub fn exec_passthrough(cmd: &str, args: &[&str]) -> Result<i32> {
     #[cfg(unix)]
     {
@@ -308,7 +309,7 @@ mod tests {
         assert_eq!(debug_str, "RealCommandRunner");
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn real_runner_run_returns_success_for_true() {
         // Arrange
@@ -321,7 +322,7 @@ mod tests {
         assert_eq!(result.exit_code, 0);
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn real_runner_run_returns_nonzero_for_false() {
         // Arrange
@@ -334,7 +335,7 @@ mod tests {
         assert_ne!(result.exit_code, 0);
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn real_runner_run_captures_stdout() {
         // Arrange
@@ -347,7 +348,7 @@ mod tests {
         assert_eq!(result.stdout, "hello\n");
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn real_runner_run_returns_error_for_nonexistent_command() {
         // Arrange
@@ -360,7 +361,7 @@ mod tests {
         assert!(result.is_err());
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn real_runner_run_interactive_returns_success_for_true() {
         // Arrange
@@ -373,7 +374,7 @@ mod tests {
         assert_eq!(exit_code, 0);
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn real_runner_run_interactive_returns_nonzero_for_false() {
         // Arrange
@@ -386,7 +387,7 @@ mod tests {
         assert_ne!(exit_code, 0);
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn real_runner_ssh_agent_list_returns_result() {
         // Arrange
@@ -399,7 +400,7 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn real_runner_ssh_keygen_fingerprint_returns_error_for_nonexistent_file() {
         // Arrange
@@ -412,7 +413,7 @@ mod tests {
         assert!(result.is_err());
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn real_runner_ssh_resolve_returns_result_for_localhost() {
         // Arrange
@@ -422,7 +423,7 @@ mod tests {
         let _result = runner.ssh_resolve("localhost", &[]);
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn real_runner_run_with_timeout_captures_stdout() {
         // Arrange
@@ -436,7 +437,7 @@ mod tests {
         assert_eq!(result.stdout, "hello-timeout\n");
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn real_runner_run_with_timeout_nonzero_exit() {
         // Arrange
@@ -449,7 +450,7 @@ mod tests {
         assert_ne!(result.exit_code, 0);
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn real_runner_run_with_timeout_spawn_error() {
         // Arrange
@@ -462,7 +463,7 @@ mod tests {
         assert!(result.is_err());
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn real_runner_run_timeout_kills_long_process() {
         // Arrange
@@ -477,7 +478,7 @@ mod tests {
         assert!(err_msg.contains("timed out") || err_msg.contains("timeout"));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn exec_with_config_returns_zero_for_true() {
         // Arrange
@@ -491,7 +492,7 @@ mod tests {
         assert_eq!(code, 0);
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn exec_with_config_returns_nonzero_for_false() {
         // Arrange
@@ -505,7 +506,7 @@ mod tests {
         assert_ne!(code, 0);
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn exec_with_config_returns_1_for_nonexistent_command() {
         // Arrange
