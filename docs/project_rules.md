@@ -391,7 +391,7 @@ mise run coverage        # code coverage report
 
 - **Warning一切禁止**
 - **フォーマット違反禁止**
-- **カバレッジ目標**: 80%以上
+- **カバレッジ目標**: 90%以上 (line coverage, `mise run coverage` で強制)
 
 ### 6.3 Miri 互換性
 
