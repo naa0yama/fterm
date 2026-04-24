@@ -330,6 +330,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(miri))]
     #[serial(env)]
     fn run_bails_when_tmux_not_set() {
         // Arrange — ensure $TMUX is unset.
