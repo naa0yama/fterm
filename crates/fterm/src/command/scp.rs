@@ -680,6 +680,7 @@ mod tests {
 
     #[cfg(not(miri))]
     #[test]
+    #[cfg(not(miri))]
     #[serial(env)]
     fn pre_connect_checks_agent_unavailable_returns_1() {
         // Arrange
@@ -714,6 +715,7 @@ mod tests {
 
     #[cfg(not(miri))]
     #[test]
+    #[cfg(not(miri))]
     #[serial(env)]
     fn pre_connect_checks_agent_available_no_config_returns_none() {
         // Arrange
@@ -782,6 +784,7 @@ mod tests {
 
     #[cfg(not(miri))]
     #[test]
+    #[cfg(not(miri))]
     #[serial(env)]
     fn pre_connect_checks_validation_errors_returns_1() {
         // Arrange
@@ -841,6 +844,7 @@ mod tests {
 
     #[cfg(not(miri))]
     #[test]
+    #[cfg(not(miri))]
     #[serial(env)]
     fn pre_connect_checks_validation_warnings_returns_none() {
         // Arrange
@@ -989,6 +993,7 @@ mod tests {
 
     #[cfg(not(miri))]
     #[test]
+    #[cfg(not(miri))]
     #[serial(env)]
     fn pre_connect_checks_not_in_tmux_delegates() {
         // Arrange — TMUX is unset; mock tmux commands to simulate delegation
@@ -1048,6 +1053,7 @@ mod tests {
 
     #[cfg(not(miri))]
     #[test]
+    #[cfg(not(miri))]
     #[serial(env)]
     fn pre_connect_checks_with_valid_config_passes() {
         // Arrange

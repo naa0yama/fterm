@@ -136,6 +136,7 @@ mod tests {
 
     #[cfg(not(miri))]
     #[test]
+    #[cfg(not(miri))]
     #[serial(env)]
     fn tilde_path_expands_correctly() {
         // Arrange

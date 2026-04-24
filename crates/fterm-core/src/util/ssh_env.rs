@@ -71,6 +71,7 @@ mod tests {
 
     #[cfg(not(miri))]
     #[test]
+    #[cfg(not(miri))]
     #[serial(env)]
     fn load_sets_env_vars_from_file() {
         // Arrange
@@ -102,6 +103,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(miri))]
     #[serial(env)]
     fn load_does_nothing_without_ssh_env() {
         // Arrange
@@ -112,6 +114,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(miri))]
     #[serial(env)]
     fn load_handles_missing_file() {
         // Arrange
@@ -126,6 +129,7 @@ mod tests {
 
     #[cfg(not(miri))]
     #[test]
+    #[cfg(not(miri))]
     #[serial(env)]
     fn load_skips_comments_and_empty_lines() {
         // Arrange

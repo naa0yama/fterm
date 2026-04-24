@@ -112,6 +112,7 @@ mod tests {
     // -- resolve_home tests --
 
     #[test]
+    #[cfg(not(miri))]
     #[serial(env)]
     fn resolve_home_uses_home_by_default() {
         // Arrange
@@ -131,6 +132,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(miri))]
     #[serial(env)]
     fn resolve_home_prefers_userprofile_on_msys2() {
         // Arrange
@@ -155,6 +157,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(miri))]
     #[serial(env)]
     fn resolve_home_falls_back_to_home_on_msys2_without_userprofile() {
         // Arrange
@@ -178,6 +181,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(miri))]
     #[serial(env)]
     fn resolve_home_falls_back_to_root() {
         // Arrange
@@ -197,6 +201,7 @@ mod tests {
     // -- expand_tilde tests --
 
     #[test]
+    #[cfg(not(miri))]
     #[serial(env)]
     fn expands_tilde_to_home() {
         // Arrange
@@ -227,6 +232,7 @@ mod tests {
     // -- to_windows_path tests --
 
     #[test]
+    #[cfg(not(miri))]
     #[serial(env)]
     fn to_win_mixed_returns_as_is_without_msystem() {
         // Arrange
@@ -241,6 +247,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(miri))]
     #[serial(env)]
     fn expand_tilde_bare_tilde_returns_home() {
         // Arrange
@@ -260,6 +267,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(miri))]
     #[serial(env)]
     fn msys2_home_returns_none_without_msystem() {
         // Arrange
@@ -273,6 +281,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(miri))]
     #[serial(env)]
     fn resolve_win_ssh_command_returns_none_without_msystem() {
         // Arrange

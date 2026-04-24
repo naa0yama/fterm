@@ -512,6 +512,7 @@ mod tests {
     // -- pre_connect_checks tests --
 
     #[test]
+    #[cfg(not(miri))]
     #[serial(env)]
     fn pre_connect_checks_agent_unavailable_returns_exit_code_1() {
         // Arrange
@@ -540,6 +541,7 @@ mod tests {
 
     #[cfg(not(miri))]
     #[test]
+    #[cfg(not(miri))]
     #[serial(env)]
     fn pre_connect_checks_agent_available_passes() {
         // Arrange
@@ -599,6 +601,7 @@ mod tests {
 
     #[cfg(not(miri))]
     #[test]
+    #[cfg(not(miri))]
     #[serial(env)]
     fn pre_connect_checks_with_identity_option_skips_agent_check() {
         // Arrange
@@ -663,6 +666,7 @@ mod tests {
 
     #[cfg(not(miri))]
     #[test]
+    #[cfg(not(miri))]
     #[serial(env)]
     fn run_validation_no_config_returns_none() {
         // Arrange
@@ -712,6 +716,7 @@ mod tests {
 
     #[cfg(not(miri))]
     #[test]
+    #[cfg(not(miri))]
     #[serial(env)]
     fn run_validation_with_valid_config_returns_none() {
         // Arrange
@@ -773,6 +778,7 @@ mod tests {
 
     #[cfg(not(miri))]
     #[test]
+    #[cfg(not(miri))]
     #[serial(env)]
     fn run_validation_with_errors_returns_some_1() {
         // Arrange
@@ -821,6 +827,7 @@ mod tests {
 
     #[cfg(not(miri))]
     #[test]
+    #[cfg(not(miri))]
     #[serial(env)]
     fn run_validation_with_warnings_returns_none() {
         // Arrange
@@ -884,6 +891,7 @@ mod tests {
 
     #[cfg(not(miri))]
     #[test]
+    #[cfg(not(miri))]
     #[serial(env)]
     fn pre_connect_checks_validation_errors_returns_1() {
         // Arrange
@@ -940,6 +948,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(miri))]
     #[serial(env)]
     fn pre_connect_checks_not_in_tmux_delegates() {
         // Arrange — TMUX is unset; mock tmux commands to simulate delegation

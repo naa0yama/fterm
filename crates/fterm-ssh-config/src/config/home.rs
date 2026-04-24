@@ -53,6 +53,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[cfg(not(miri))]
     #[serial(env)]
     fn returns_ssh_directory_under_home() {
         // Arrange
@@ -70,6 +71,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(miri))]
     #[serial(env)]
     fn returns_custom_dir_from_env() {
         // Arrange
@@ -86,6 +88,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(miri))]
     #[serial(env)]
     fn build_config_args_returns_path_when_custom_dir_set() {
         // Arrange
@@ -105,6 +108,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(miri))]
     #[serial(env)]
     fn build_config_args_returns_empty_when_default_dir() {
         // Arrange
