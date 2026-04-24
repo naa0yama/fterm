@@ -153,7 +153,7 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
-    use crate::external::MockCommandRunner;
+    use fterm_core::runner::MockCommandRunner;
 
     #[cfg(not(miri))]
     #[test]

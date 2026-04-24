@@ -8,6 +8,9 @@ resolver = "3"
 
 members = [
 	"crates/fterm",
+	"crates/fterm-core",
+	"crates/fterm-session",
+	"crates/fterm-ssh-config",
 ]
 
 [workspace.package]

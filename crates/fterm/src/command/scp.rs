@@ -9,6 +9,7 @@ use std::time::Instant;
 
 use anyhow::{Context, Result};
 use chrono::Local;
+use fterm_core::check_types::format_summary;
 use tracing::{debug, warn};
 
 use crate::config::details;
@@ -26,7 +27,7 @@ use crate::util::log_dir;
 use crate::util::scp_args::extract_user_host_pairs;
 use crate::util::splash;
 use crate::util::ssh_env;
-use crate::validate::orchestrator::{format_summary, run_all_checks};
+use crate::validate::orchestrator::run_all_checks;
 
 /// Run the SCP wrapper command.
 ///
@@ -378,7 +379,7 @@ mod tests {
     use super::*;
     use crate::external::AgentListResult;
     use crate::external::CommandOutput;
-    use crate::external::MockCommandRunner;
+    use fterm_core::runner::MockCommandRunner;
 
     /// Create a file at `path` with `0600` permissions.
     /// Used in pre-connect-checks tests to satisfy `IdentityFile` validation.

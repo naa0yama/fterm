@@ -1,5 +1,5 @@
-//! Session logging with tmux pipe-pane integration.
+//! Session logging — re-exported from `fterm-session`.
 
-pub mod filter;
-pub mod start;
-pub mod stop;
+pub use fterm_session::logging::filter;
+pub use fterm_session::logging::start;
+pub use fterm_session::logging::stop;

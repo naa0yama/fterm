@@ -41,6 +41,11 @@ otel = [
 # - Dependencies
 # -
 [dependencies]
+# Internal
+fterm-core = { path = "../fterm-core" }
+fterm-session = { path = "../fterm-session" }
+fterm-ssh-config = { path = "../fterm-ssh-config" }
+
 # Core
 anyhow.workspace = true
 clap.workspace = true
@@ -81,6 +86,9 @@ nix.workspace = true
 # -
 [dev-dependencies]
 assert_cmd.workspace = true
+fterm-core = { path = "../fterm-core", features = ["testutil"] }
+fterm-session = { path = "../fterm-session" }
+fterm-ssh-config = { path = "../fterm-ssh-config" }
 opentelemetry_sdk = { workspace = true, features = ["testing"] }
 predicates.workspace = true
 serial_test.workspace = true
