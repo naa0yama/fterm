@@ -1,3 +1,4 @@
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 //! fterm — SSH/SCP connection management tool.
 
 mod cli;
@@ -20,6 +21,7 @@ use crate::cli::{Cli, Commands};
 use crate::telemetry::metrics::Meters;
 
 // NOTEST(unreachable): process entry point; global init and process::exit are not unit-testable
+#[cfg_attr(coverage_nightly, coverage(off))]
 fn main() {
     let providers = telemetry::init_otel();
     telemetry::init_subscriber(&providers);
@@ -109,7 +111,7 @@ mod tests {
 
     use super::*;
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn run_log_filter_processes_empty_stream() {
         // Arrange — empty input; process_stream reads from a Cursor<&[u8]>

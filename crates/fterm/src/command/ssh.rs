@@ -9,6 +9,7 @@ use std::time::Instant;
 
 use anyhow::{Context, Result};
 use chrono::Local;
+use fterm_core::check_types::format_summary;
 use tracing::{debug, warn};
 
 use crate::config::details;
@@ -26,7 +27,7 @@ use crate::util::log_dir;
 use crate::util::splash;
 use crate::util::ssh_args::{extract_hostname_from_destination, extract_ssh_host};
 use crate::util::ssh_env;
-use crate::validate::orchestrator::{format_summary, run_all_checks};
+use crate::validate::orchestrator::run_all_checks;
 
 /// Run the SSH wrapper command implementing the full connection flow.
 ///
@@ -405,11 +406,12 @@ mod tests {
         }
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn generate_log_path_contains_expected_parts() {
         // Arrange
-        use crate::external::{CommandOutput, MockCommandRunner};
+        use crate::external::CommandOutput;
+        use fterm_core::runner::MockCommandRunner;
         let runner = MockCommandRunner::new().with_run_response(
             "tmux display-message -p #{pane_pid}",
             CommandOutput {
@@ -454,11 +456,11 @@ mod tests {
 
     // -- setup_connection tests --
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn setup_connection_runs_without_error() {
         // Arrange
-        use crate::external::MockCommandRunner;
+        use fterm_core::runner::MockCommandRunner;
         let runner = MockCommandRunner::new();
         let log_path = PathBuf::from("/tmp/test.log");
         let conn = crate::config::connection::Info {
@@ -485,13 +487,13 @@ mod tests {
 
     // -- teardown_connection tests --
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn teardown_connection_runs_without_error() {
         // Arrange
         use std::time::Instant;
 
-        use crate::external::MockCommandRunner;
+        use fterm_core::runner::MockCommandRunner;
         let runner = MockCommandRunner::new();
         let log_path = PathBuf::from("/tmp/test.log");
         let conn = crate::config::connection::Info {
@@ -510,10 +512,12 @@ mod tests {
     // -- pre_connect_checks tests --
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial(env)]
     fn pre_connect_checks_agent_unavailable_returns_exit_code_1() {
         // Arrange
-        use crate::external::{AgentListResult, MockCommandRunner};
+        use crate::external::AgentListResult;
+        use fterm_core::runner::MockCommandRunner;
 
         // SAFETY: test runs single-threaded; env var is restored immediately.
         unsafe { env::set_var("TMUX", "test") };
@@ -535,14 +539,15 @@ mod tests {
         unsafe { env::remove_var("TMUX") };
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     #[serial(env)]
     fn pre_connect_checks_agent_available_passes() {
         // Arrange
         use tempfile::TempDir;
 
-        use crate::external::{AgentListResult, MockCommandRunner};
+        use crate::external::AgentListResult;
+        use fterm_core::runner::MockCommandRunner;
 
         // SAFETY: test runs single-threaded; env var is restored immediately.
         let original_home = env::var("HOME").ok();
@@ -593,14 +598,15 @@ mod tests {
         }
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     #[serial(env)]
     fn pre_connect_checks_with_identity_option_skips_agent_check() {
         // Arrange
         use tempfile::TempDir;
 
-        use crate::external::{AgentListResult, MockCommandRunner};
+        use crate::external::AgentListResult;
+        use fterm_core::runner::MockCommandRunner;
 
         // SAFETY: test runs single-threaded; env var is restored immediately.
         let original_home = env::var("HOME").ok();
@@ -656,14 +662,14 @@ mod tests {
 
     // -- run_validation tests --
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     #[serial(env)]
     fn run_validation_no_config_returns_none() {
         // Arrange
         use tempfile::TempDir;
 
-        use crate::external::MockCommandRunner;
+        use fterm_core::runner::MockCommandRunner;
 
         // SAFETY: test runs single-threaded; env var is restored immediately.
         let original_home = env::var("HOME").ok();
@@ -705,7 +711,7 @@ mod tests {
         }
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     #[serial(env)]
     fn run_validation_with_valid_config_returns_none() {
@@ -714,7 +720,7 @@ mod tests {
 
         use tempfile::TempDir;
 
-        use crate::external::MockCommandRunner;
+        use fterm_core::runner::MockCommandRunner;
 
         // SAFETY: test runs single-threaded; env var is restored immediately.
         let original_home = env::var("HOME").ok();
@@ -766,14 +772,14 @@ mod tests {
         }
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     #[serial(env)]
     fn run_validation_with_errors_returns_some_1() {
         // Arrange
         use tempfile::TempDir;
 
-        use crate::external::MockCommandRunner;
+        use fterm_core::runner::MockCommandRunner;
 
         let original_home = env::var("HOME").ok();
         let tmp = TempDir::new().unwrap();
@@ -814,14 +820,14 @@ mod tests {
         assert_eq!(result, Some(1), "validation errors should return Some(1)");
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     #[serial(env)]
     fn run_validation_with_warnings_returns_none() {
         // Arrange
         use tempfile::TempDir;
 
-        use crate::external::MockCommandRunner;
+        use fterm_core::runner::MockCommandRunner;
 
         let original_home = env::var("HOME").ok();
         let tmp = TempDir::new().unwrap();
@@ -877,14 +883,15 @@ mod tests {
         );
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     #[serial(env)]
     fn pre_connect_checks_validation_errors_returns_1() {
         // Arrange
         use tempfile::TempDir;
 
-        use crate::external::{AgentListResult, MockCommandRunner};
+        use crate::external::AgentListResult;
+        use fterm_core::runner::MockCommandRunner;
 
         let original_home = env::var("HOME").ok();
         let tmp = TempDir::new().unwrap();
@@ -934,10 +941,12 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial(env)]
     fn pre_connect_checks_not_in_tmux_delegates() {
         // Arrange — TMUX is unset; mock tmux commands to simulate delegation
-        use crate::external::{CommandOutput, MockCommandRunner};
+        use crate::external::CommandOutput;
+        use fterm_core::runner::MockCommandRunner;
 
         let original_tmux = env::var("TMUX").ok();
         // SAFETY: test runs single-threaded; env var is restored immediately.
@@ -988,11 +997,12 @@ mod tests {
         assert_eq!(result, Some(0));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn generate_log_path_uses_pane_pid() {
         // Arrange
-        use crate::external::{CommandOutput, MockCommandRunner};
+        use crate::external::CommandOutput;
+        use fterm_core::runner::MockCommandRunner;
         let runner = MockCommandRunner::new().with_run_response(
             "tmux display-message -p #{pane_pid}",
             CommandOutput {

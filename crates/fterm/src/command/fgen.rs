@@ -438,7 +438,7 @@ mod tests {
         assert!(!result.contains("org_dev"));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn run_inner_creates_default_template_and_exits_early() {
         // Arrange
@@ -461,7 +461,7 @@ mod tests {
         assert!(output.contains("edit it before running fgen again"));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn run_inner_empty_org_returns_1() {
         // Arrange
@@ -483,7 +483,7 @@ mod tests {
         assert!(output.contains("Input cannot be empty"));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn run_inner_empty_env_returns_1() {
         // Arrange
@@ -504,7 +504,7 @@ mod tests {
         assert!(output.contains("Environment name cannot be empty"));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn run_inner_retry_on_empty_org_then_success() {
         // Arrange
@@ -525,7 +525,7 @@ mod tests {
         assert!(output.contains("Generated:"));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn run_inner_generates_config_file() {
         // Arrange
@@ -548,7 +548,7 @@ mod tests {
         assert!(generated.contains("User myco_prod"));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn run_inner_uses_existing_template() {
         // Arrange
@@ -574,7 +574,7 @@ mod tests {
         assert!(!output.contains("Creating default template"));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn run_inner_overwrite_confirmed() {
         // Arrange
@@ -599,7 +599,7 @@ mod tests {
         assert!(generated.contains("Host myco.prod-*"));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn run_inner_overwrite_declined() {
         // Arrange
@@ -625,7 +625,7 @@ mod tests {
         assert!(output.contains("Aborted"));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn run_inner_show_preview_truncates_long_output() {
         use std::fmt::Write as FmtWrite;

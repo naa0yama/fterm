@@ -9,6 +9,7 @@ use std::time::Instant;
 
 use anyhow::{Context, Result};
 use chrono::Local;
+use fterm_core::check_types::format_summary;
 use tracing::{debug, warn};
 
 use crate::config::details;
@@ -26,7 +27,7 @@ use crate::util::log_dir;
 use crate::util::scp_args::extract_user_host_pairs;
 use crate::util::splash;
 use crate::util::ssh_env;
-use crate::validate::orchestrator::{format_summary, run_all_checks};
+use crate::validate::orchestrator::run_all_checks;
 
 /// Run the SCP wrapper command.
 ///
@@ -378,7 +379,7 @@ mod tests {
     use super::*;
     use crate::external::AgentListResult;
     use crate::external::CommandOutput;
-    use crate::external::MockCommandRunner;
+    use fterm_core::runner::MockCommandRunner;
 
     /// Create a file at `path` with `0600` permissions.
     /// Used in pre-connect-checks tests to satisfy `IdentityFile` validation.
@@ -391,7 +392,7 @@ mod tests {
         }
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn resolve_all_hosts_uses_ssh_g_user() {
         // Arrange — two hosts, each with a distinct resolved user
@@ -418,7 +419,7 @@ mod tests {
         );
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn resolve_all_hosts_prefers_explicit_user() {
         // Arrange — explicit user in arg overrides ssh -G resolved user
@@ -437,7 +438,7 @@ mod tests {
         );
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn resolve_all_hosts_defaults_unknown_on_parse_failure() {
         // Arrange — ssh -G returns empty output (parse fails)
@@ -455,7 +456,7 @@ mod tests {
         );
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn generate_scp_log_path_contains_expected_parts() {
         // Arrange
@@ -480,7 +481,7 @@ mod tests {
         assert!(path_str.contains("scp_deploy@host1_deploy@host2_11111.log"));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn generate_scp_log_path_single_host() {
         // Arrange
@@ -503,7 +504,7 @@ mod tests {
         assert!(path_str.ends_with(".log"));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn generate_scp_log_path_multi_host_different_users() {
         // Arrange
@@ -528,7 +529,7 @@ mod tests {
         assert!(path_str.contains("scp_alice@host1_bob@host2_33333.log"));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn generate_scp_log_path_contains_date_directory() {
         // Arrange
@@ -548,7 +549,7 @@ mod tests {
         );
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn generate_scp_log_path_contains_timestamp_prefix() {
         // Arrange
@@ -568,7 +569,7 @@ mod tests {
         );
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn setup_scp_session_succeeds_with_mock_runner() {
         // Arrange
@@ -601,7 +602,7 @@ mod tests {
         assert!(content.contains("SHA256:abc key@host (ED25519)"));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn setup_scp_session_creates_log_directory() {
         // Arrange
@@ -618,7 +619,7 @@ mod tests {
         assert!(log_path.exists());
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn setup_scp_session_with_empty_details() {
         // Arrange
@@ -637,7 +638,7 @@ mod tests {
         assert_eq!(content, "");
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn teardown_scp_session_does_not_panic() {
         // Arrange
@@ -651,7 +652,7 @@ mod tests {
         teardown_scp_session(&runner, &log_path, &user_at_hosts, false, "0s", "");
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn teardown_scp_session_single_host_success() {
         // Arrange
@@ -664,7 +665,7 @@ mod tests {
         teardown_scp_session(&runner, &log_path, &user_at_hosts, true, "0s", "");
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn teardown_scp_session_failure_does_not_panic() {
         // Arrange
@@ -677,7 +678,7 @@ mod tests {
         teardown_scp_session(&runner, &log_path, &user_at_hosts, false, "0s", "");
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     #[serial(env)]
     fn pre_connect_checks_agent_unavailable_returns_1() {
@@ -711,7 +712,7 @@ mod tests {
         );
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     #[serial(env)]
     fn pre_connect_checks_agent_available_no_config_returns_none() {
@@ -779,7 +780,7 @@ mod tests {
         );
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     #[serial(env)]
     fn pre_connect_checks_validation_errors_returns_1() {
@@ -838,7 +839,7 @@ mod tests {
         );
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     #[serial(env)]
     fn pre_connect_checks_validation_warnings_returns_none() {
@@ -906,7 +907,7 @@ mod tests {
         );
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn teardown_scp_session_handles_runner_errors() {
         // Arrange — register failing responses for tmux commands used in teardown
@@ -943,7 +944,7 @@ mod tests {
         teardown_scp_session(&runner, &log_path, &user_at_hosts, true, "0s", "");
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn setup_scp_session_handles_pane_errors() {
         // Arrange — start::start needs a valid log path; pane/window cmds fail
@@ -986,7 +987,7 @@ mod tests {
         );
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     #[serial(env)]
     fn pre_connect_checks_not_in_tmux_delegates() {
@@ -1045,7 +1046,7 @@ mod tests {
         assert_eq!(result, Some(0));
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     #[serial(env)]
     fn pre_connect_checks_with_valid_config_passes() {

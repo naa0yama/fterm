@@ -359,6 +359,9 @@ dependencies = [
  "clap",
  "clap_complete",
  "flate2",
+ "fterm-core",
+ "fterm-session",
+ "fterm-ssh-config",
  "gethostname",
  "glob",
  "nix",
@@ -378,6 +381,45 @@ dependencies = [
  "tracing-subscriber",
  "walkdir",
  "which",
+]
+
+[[package]]
+name = "fterm-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "serial_test",
+ "tempfile",
+ "tracing",
+]
+
+[[package]]
+name = "fterm-session"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "flate2",
+ "fterm-core",
+ "serial_test",
+ "strip-ansi-escapes",
+ "tempfile",
+ "tracing",
+ "walkdir",
+]
+
+[[package]]
+name = "fterm-ssh-config"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "fterm-core",
+ "glob",
+ "nix",
+ "serial_test",
+ "tempfile",
+ "tracing",
 ]
 
 [[package]]

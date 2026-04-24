@@ -1,5 +1,5 @@
-//! Tmux session, pane, and window management.
+//! Tmux session management — re-exported from `fterm-session`.
 
-pub mod pane;
-pub mod session;
-pub mod window;
+pub use fterm_session::tmux::pane;
+pub use fterm_session::tmux::session;
+pub use fterm_session::tmux::window;

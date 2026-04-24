@@ -96,6 +96,7 @@ where
 
 /// Launch fzf with SSH host items and return the selected hostname.
 // NOTEST(infra): requires interactive fzf terminal session
+#[cfg_attr(coverage_nightly, coverage(off))]
 fn run_fzf_selection(hosts: &[String], config_files: &[PathBuf]) -> Result<Option<String>> {
     let files_arg: String = config_files
         .iter()
@@ -153,9 +154,9 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
-    use crate::external::MockCommandRunner;
+    use fterm_core::runner::MockCommandRunner;
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     #[serial(env)]
     fn compress_old_logs_does_not_panic_on_missing_dir() {
@@ -172,7 +173,7 @@ mod tests {
         unsafe { env::remove_var("FTERM_LOG_DIR_PREFIX") };
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     #[serial(env)]
     fn compress_old_logs_with_existing_empty_dir() {
@@ -190,7 +191,7 @@ mod tests {
         unsafe { env::remove_var("FTERM_LOG_DIR_PREFIX") };
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     #[serial(env)]
     fn run_inner_no_config_returns_1() {
@@ -211,7 +212,7 @@ mod tests {
         unsafe { env::remove_var("FTERM_LOG_DIR_PREFIX") };
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     #[serial(env)]
     fn run_inner_empty_host_list_returns_1() {
@@ -234,7 +235,7 @@ mod tests {
         unsafe { env::remove_var("FTERM_LOG_DIR_PREFIX") };
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     #[serial(env)]
     fn run_inner_selection_returns_hostname() {
@@ -257,7 +258,7 @@ mod tests {
         unsafe { env::remove_var("FTERM_LOG_DIR_PREFIX") };
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     #[serial(env)]
     fn run_inner_selection_cancelled_returns_1() {
@@ -278,7 +279,7 @@ mod tests {
         unsafe { env::remove_var("FTERM_LOG_DIR_PREFIX") };
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     #[serial(env)]
     fn run_inner_selection_empty_string_returns_1() {
@@ -301,7 +302,7 @@ mod tests {
         unsafe { env::remove_var("FTERM_LOG_DIR_PREFIX") };
     }
 
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     #[test]
     #[serial(env)]
     fn run_inner_select_fn_error_propagates() {
@@ -330,6 +331,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial(env)]
     fn run_bails_when_tmux_not_set() {
         // Arrange — ensure $TMUX is unset.
