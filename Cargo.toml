@@ -44,7 +44,7 @@ walkdir = "2"
 which = "7"
 
 ## Unix
-nix = { version = "0.30", default-features = false, features = ["fs"] }
+nix = { version = "0.31", default-features = false, features = ["fs"] }
 
 ## OpenTelemetry (optional extras)
 gethostname = "1"
