@@ -76,7 +76,7 @@ needed.
 
 ## SSH Helper Timeout: `SSH_HELPER_TIMEOUT_SECS = 1` (Finding 10)
 
-**Constant**: `SSH_HELPER_TIMEOUT_SECS` in `src/external.rs`
+**Constant**: `SSH_HELPER_TIMEOUT_SECS` in `crates/fterm/src/external.rs`
 
 **Value**: `1` second
 
