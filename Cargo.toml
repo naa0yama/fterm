@@ -30,24 +30,21 @@ repository = "https://github.com/naa0yama/fterm"
 
 ## Core
 clap = { version = "4.5.45", default-features = false, features = ["std", "derive", "help", "usage", "error-context", "color", "suggestions"] }
-clap_complete = "4.5"
-thiserror = "2"
+clap_complete = "4.5.45"
+thiserror = "2.0.18"
 
 ## Time
-chrono = { version = "0.4", default-features = false, features = ["clock"] }
+chrono = { version = "0.4.44", default-features = false, features = ["clock"] }
 
 ## File utilities
-flate2 = "1"
-glob = "0.3"
-strip-ansi-escapes = "0.2"
-walkdir = "2"
-which = "7"
+flate2 = "1.1.9"
+glob = "0.3.3"
+strip-ansi-escapes = "0.2.1"
+walkdir = "2.5.0"
+which = "8.0.2"
 
 ## Unix
-nix = { version = "0.30", default-features = false, features = ["fs"] }
-
-## OpenTelemetry (optional extras)
-gethostname = "1"
+nix = { version = "0.31.2", default-features = false, features = ["fs"] }
 
 ## Dev
 serial_test = "3"
@@ -67,6 +64,9 @@ sysinfo = { version = "0.38", default-features = false, features = ["system"] }
 ## OpenTelemetry semantic conventions (optional, behind `process-metrics` feature)
 ## semconv_experimental: enables process.* metric name constants (currently experimental)
 opentelemetry-semantic-conventions = { version = "0.31", default-features = false, features = ["semconv_experimental"] }
+
+## Hostname (optional, behind `otel` feature)
+gethostname = "1.1.0"
 
 ## OpenTelemetry (optional, behind `otel` feature)
 opentelemetry = { version = "0.31", default-features = false, features = ["trace", "metrics", "logs"] }
