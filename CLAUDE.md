@@ -8,44 +8,50 @@
 
 All tasks use `mise run <task>`:
 
-| Task                  | Command                       |
-| --------------------- | ----------------------------- |
-| Setup                 | `mise run setup`              |
-| Build                 | `mise run build`              |
-| Build (release)       | `mise run build:release`      |
-| Build (timings)       | `mise run build:timings`      |
-| Check                 | `mise run check`              |
-| Test                  | `mise run test`               |
-| TDD watch             | `mise run test:watch`         |
-| Doc tests             | `mise run test:doc`           |
-| Trace test            | `mise run test:trace`         |
-| Format                | `mise run fmt`                |
-| Format check          | `mise run fmt:check`          |
-| Lint (clippy)         | `mise run clippy`             |
-| Lint strict           | `mise run clippy:strict`      |
-| Lint                  | `mise run lint`               |
-| Lint (GitHub Actions) | `mise run lint:gh`            |
-| AST rules             | `mise run ast-grep`           |
-| Pre-commit (required) | `mise run pre-commit`         |
-| Pre-push              | `mise run pre-push`           |
-| Coverage              | `mise run coverage`           |
-| Coverage (HTML)       | `mise run coverage:html`      |
-| Audit                 | `mise run audit`              |
-| Deny (licenses/deps)  | `mise run deny`               |
-| Miri (UB detection)   | `mise run miri`               |
-| Build (OTel)          | `cargo build --features otel` |
-| Clean (full)          | `mise run clean`              |
-| Clean (sweep)         | `mise run clean:sweep`        |
-| Clean (cache)         | `mise run clean:cache`        |
-| Badges (init)         | `mise run badges:init`        |
-| Claude Code (install) | `mise run claudecode:install` |
-| O2 (install)          | `mise run o2:install`         |
-| O2 (start)            | `mise run o2`                 |
-| O2 (stop)             | `mise run o2:stop`            |
-| CodeQL (install)      | `mise run codeql:install`     |
-| CodeQL (analyze)      | `mise run codeql`             |
-| SSH test setup        | `mise run ssh:setup`          |
-| sshd (test)           | `mise run sshd`               |
+| Task                  | Command                                                |
+| --------------------- | ------------------------------------------------------ |
+| Setup                 | `mise run setup`                                       |
+| Build                 | `mise run build`                                       |
+| Build (release)       | `mise run build:release`                               |
+| Build (timings)       | `mise run build:timings`                               |
+| Check                 | `mise run check`                                       |
+| Test                  | `mise run test`                                        |
+| TDD watch             | `mise run test:watch`                                  |
+| Doc tests             | `mise run test:doc`                                    |
+| Trace test            | `mise run test:trace`                                  |
+| Format                | `mise run fmt`                                         |
+| Format check          | `mise run fmt:check`                                   |
+| Lint (clippy)         | `mise run clippy`                                      |
+| Lint strict           | `mise run clippy:strict`                               |
+| Lint                  | `mise run lint`                                        |
+| Lint (GitHub Actions) | `mise run lint:gh`                                     |
+| AST rules             | `mise run ast-grep`                                    |
+| Pre-commit (required) | `mise run pre-commit`                                  |
+| Pre-push              | `mise run pre-push`                                    |
+| Coverage              | `mise run coverage`                                    |
+| Coverage (HTML)       | `mise run coverage:html`                               |
+| Audit                 | `mise run audit`                                       |
+| Deny (licenses/deps)  | `mise run deny`                                        |
+| Miri (UB detection)   | `mise run miri`                                        |
+| Build (OTel)          | `cargo build --features otel`                          |
+| Clean (full)          | `mise run clean`                                       |
+| Clean (sweep)         | `mise run clean:sweep`                                 |
+| Clean (cache)         | `mise run clean:cache`                                 |
+| Badges (init)         | `mise run badges:init`                                 |
+| Claude Code (install) | `mise run claudecode:install`                          |
+| O2 (install)          | `mise run o2:install`                                  |
+| O2 (start)            | `mise run o2`                                          |
+| O2 (stop)             | `mise run o2:stop`                                     |
+| CodeQL (tool install) | `mise install --config-file .mise/tools.optional.toml` |
+| CodeQL (db + packs)   | `mise run codeql:install`                              |
+| CodeQL (analyze)      | `mise run codeql`                                      |
+| SSH test setup        | `mise run ssh:setup`                                   |
+| sshd (test)           | `mise run sshd`                                        |
+| Traefik setup (WSL2)  | `mise run traefik:setup`                               |
+| Dev container up      | `mise run dev:up`                                      |
+| Dev container down    | `mise run dev:down`                                    |
+| Dev container exec    | `mise run dev:exec`                                    |
+| Dev container status  | `mise run dev:status`                                  |
 
 ## Commit Convention
 
