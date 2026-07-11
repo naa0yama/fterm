@@ -21,7 +21,7 @@ RUST_LOG = "warn,fterm=trace"
 actionlint = "1.7.12"
 dprint = "0.54.0"
 ghalint = "1.5.6"
-usage = "3.2.1"
+usage = "3.5.3"
 zizmor = "1.24.1"
 
 [task_config]
