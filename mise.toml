@@ -22,7 +22,7 @@ actionlint = "1.7.12"
 dprint = "0.55.2"
 ghalint = "1.5.6"
 usage = "3.5.6"
-zizmor = "1.27.0"
+zizmor = "1.28.0"
 
 [task_config]
 includes = [".mise/tasks.toml", ".mise/overrides.toml"]
