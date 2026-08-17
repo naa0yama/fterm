@@ -3,14 +3,21 @@
 ## [v0.1.0](https://github.com/naa0yama/fterm/compare/v26.01.00-beta13...v0.1.0) - 2026-08-17
 
 ### Features 🎉
+
 - refactor: migrate to Cargo workspace and modernize CI infrastructure by @naa0yama in https://github.com/naa0yama/fterm/pull/9
 - refactor(workspace): extract fterm-core, fterm-session, fterm-ssh-config crates by @naa0yama in https://github.com/naa0yama/fterm/pull/23
+
 ### Bug Fixes 🐌
+
 - fix(ci): restore checkout steps for composite actions and clean up by @naa0yama in https://github.com/naa0yama/fterm/pull/16
+
 ### Documentation 🗒️
+
 - refactor: migrate boilerplate-rust infrastructure and tooling by @naa0yama in https://github.com/naa0yama/fterm/pull/4
 - chore(deps): pin exact versions for workspace dependencies by @naa0yama in https://github.com/naa0yama/fterm/pull/24
+
 ### Dependency Updates 📦
+
 - chore(deps): update rust crate opentelemetry-otlp to v0.31.1 by @renovate[bot] in https://github.com/naa0yama/fterm/pull/13
 - chore(deps): update rust crate clap_complete to v4.5.67 by @renovate[bot] in https://github.com/naa0yama/fterm/pull/12
 - chore(deps): update rust crate tracing-subscriber to v0.3.23 by @renovate[bot] in https://github.com/naa0yama/fterm/pull/14
@@ -26,7 +33,9 @@
 - chore(deps): update rust crate nix to v0.31.3 by @renovate[bot] in https://github.com/naa0yama/fterm/pull/79
 - chore(deps): update rust crate serial_test to v3.5.0 by @renovate[bot] in https://github.com/naa0yama/fterm/pull/89
 - chore(deps): update rust crate sysinfo to 0.39 by @renovate[bot] in https://github.com/naa0yama/fterm/pull/90
+
 ### Development Environment 🔧
+
 - chore(deps): update devcontainers/ci action to v0.3.1900000448 by @renovate[bot] in https://github.com/naa0yama/fterm/pull/19
 - chore(deps): update taiki-e/install-action action to v2.75.16 by @renovate[bot] in https://github.com/naa0yama/fterm/pull/21
 - chore(deps): update devcontainers/ci action to v0.3.1900000449 by @renovate[bot] in https://github.com/naa0yama/fterm/pull/25
@@ -133,5 +142,7 @@
 - chore(deps): update dependency usage to v3.6.0 by @renovate[bot] in https://github.com/naa0yama/fterm/pull/141
 - chore(deps): update dependency jdx/mise to v2026.7.18 by @renovate[bot] in https://github.com/naa0yama/fterm/pull/143
 - chore(deps): update dependency aqua:ast-grep/ast-grep to v0.45.1 by @renovate[bot] in https://github.com/naa0yama/fterm/pull/144
+
 ### Other Changes
+
 - chore(deps): update rust crate anyhow to v1.0.103 [security] by @renovate[bot] in https://github.com/naa0yama/fterm/pull/70
