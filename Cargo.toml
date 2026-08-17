@@ -72,7 +72,7 @@ gethostname = "1.1.0"
 opentelemetry = { version = "0.31", default-features = false, features = ["trace", "metrics", "logs"] }
 opentelemetry-appender-tracing = { version = "0.31", default-features = false }
 opentelemetry-otlp = { version = "0.31", default-features = false, features = ["trace", "logs", "metrics", "http-proto", "reqwest-blocking-client"] }
-opentelemetry_sdk = { version = "0.31", default-features = false, features = ["trace", "logs", "metrics"] }
+opentelemetry_sdk = { version = "0.32", default-features = false, features = ["trace", "logs", "metrics"] }
 tracing-opentelemetry = { version = "0.32", default-features = false }
 
 ## Dev dependencies
